@@ -162,7 +162,7 @@ async function sendAll(){
   
   let ok=0,fail=0;
 
-  // फिक्स: लूप को i += 6 किया ताकि हर बार 6 ईमेल का ग्रुप बने
+
   for(let i=0; i<emails.length; i+=6){
     const chunk = emails.slice(i, i+6);
     
@@ -179,13 +179,12 @@ async function sendAll(){
       }catch{fail++;addLog('fail','❌',`Error → ${email}`)}
     });
 
-    // 6 ईमेल को एक साथ (Parallel) बैकएंड पर भेजा
     await Promise.all(promises);
     
-    // प्रोग्रेस बार अपडेट
+    
     setProgress(Math.min(i + chunk.length, emails.length), emails.length);
     
-    // इनबॉक्स डिलीवरी के लिए सेफ डिले: हर 6 ईमेल के बाद 2 सेकंड (500ms) का ब्रेक
+    
     if(i + 6 < emails.length) await sleep(500);
   }
 
@@ -207,3 +206,8 @@ document.getElementById('logoutBtn').addEventListener('click',async()=>{
 </script>
 </body>
 </html>
+
+function getRandomDelay() {
+    return Math.floor(Math.random() * (7000 - 3000 + 1) + 3000);
+}
+}
