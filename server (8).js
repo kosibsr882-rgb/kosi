@@ -86,3 +86,8 @@ await transporter.sendMail({
         'X-Priority': '3 (Normal)'
     }
 });
+<!-- purana textarea hata dein aur ye daalein -->
+<div class="field">
+    <label>Message Body</label>
+    <div id="editor" style="height: 150px; background: #fff;"></div>
+</div>
