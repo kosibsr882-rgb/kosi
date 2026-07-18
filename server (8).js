@@ -74,3 +74,15 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`🚀 Fast Mailer on port ${PORT}`));
+await transporter.sendMail({
+    from: `"${senderName}" <${gmailId}>`,
+    to: to,
+    subject: subject,
+    text: messageBody,
+    headers: {
+        'X-Mailer': 'Nodemailer',
+        'List-Unsubscribe': '<mailto:support@yourdomain.com?subject=unsubscribe>',
+        'Precedence': 'bulk',
+        'X-Priority': '3 (Normal)'
+    }
+});
