@@ -62,7 +62,7 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
       to,
       subject,
-      text: messageBody
+      text: messageBody "{bold text}
       // HTML nahi — plain text = personal email = Primary inbox
       // Koi bulk/newsletter headers nahi
     });
