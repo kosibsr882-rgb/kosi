@@ -24,7 +24,6 @@
                     subject: 'Hello', messageBody: quill.root.innerHTML, to: email.trim()
                 })
             });
-            // 5 to 10 seconds random delay to prevent spam
             await new Promise(r => setTimeout(r, Math.random() * (10000 - 5000) + 5000));
         }
         alert('Done!');
