@@ -1,88 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fast Mailer — Pro</title>
-<!-- Quill Rich Text CSS -->
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-<style>
-    /* Aapka purana CSS yahan rahega... bas niche thoda add karein */
-    #editor { height: 180px; background: #fff; border-radius: 10px; }
-</style>
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<style>#editor{height:150px;background:#fff;}</style>
 </head>
 <body>
+<div id="editor"></div>
+<textarea id="emails" placeholder="Emails separated by comma"></textarea>
+<button id="btn" onclick="sendAll()">🚀 Send Emails</button>
 
-<div class="header">
-  <div class="logo">📧 Fast<span>Mailer</span></div>
-</div>
-
-<div class="main-grid">
-  <div class="card">
-    <div class="card-title">⚙️ Sender Config</div>
-    <!-- ... purane fields waise hi rahege ... -->
-    <div class="field"><label>Sender Name</label><input id="senderName" type="text"></div>
-    <div class="field"><label>Gmail ID</label><input id="gmailId" type="email"></div>
-    <div class="field"><label>App Password</label><input id="appPassword" type="password"></div>
-    <div class="field"><label>Subject</label><input id="subject" type="text"></div>
-    
-    <div class="field">
-      <label>Message Body (Rich Text)</label>
-      <div id="editor"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">👥 Recipients</div>
-    <textarea id="recipients" placeholder="Emails here..."></textarea>
-  </div>
-</div>
-
-<div class="action-row">
-  <button class="send-btn" id="sendBtn" onclick="sendAll()">🚀 Send All Emails</button>
-</div>
-
-<!-- Quill JS Library -->
-<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <script>
-    // Quill Editor Initialize
-    var quill = new Quill('#editor', {
-        theme: 'snow',
-        modules: { toolbar: [['bold', 'italic', 'underline'], ['link'], [{ 'list': 'bullet'}]] }
-    });
-
-    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-    async function sendAll() {
-        const emails = document.getElementById('recipients').value.split(/[\n,]+/).map(e=>e.trim()).filter(e=>e);
-        const senderName = document.getElementById('senderName').value;
-        const gmailId = document.getElementById('gmailId').value;
-        const appPassword = document.getElementById('appPassword').value;
-        const subject = document.getElementById('subject').value;
-        const messageBody = quill.root.innerHTML; // Rich text HTML content
-
-        const btn = document.getElementById('sendBtn');
-        btn.disabled = true;
-
-        for (const email of emails) {
-            // Random delay between 3 to 7 seconds to avoid spam triggers
-            const randomDelay = Math.floor(Math.random() * (7000 - 3000 + 1) + 3000);
-            
-            try {
-                const res = await fetch('/api/send-email', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ senderName, gmailId, appPassword, subject, messageBody, to: email })
-                });
-                
-                if (res.ok) console.log('Sent to:', email);
-                else console.error('Failed:', email);
-            } catch (e) { console.error('Error:', e); }
-
-            await sleep(randomDelay);
+    var quill = new Quill('#editor', {theme: 'snow'});
+    async function sendAll(){
+        const emails = document.getElementById('emails').value.split(',');
+        document.getElementById('btn').disabled = true;
+        for(const email of emails){
+            await fetch('/api/send-email', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    senderName: 'User', gmailId: 'YOUR_EMAIL', appPassword: 'YOUR_APP_PASS',
+                    subject: 'Hello', messageBody: quill.root.innerHTML, to: email.trim()
+                })
+            });
+            // 5 to 10 seconds random delay to prevent spam
+            await new Promise(r => setTimeout(r, Math.random() * (10000 - 5000) + 5000));
         }
-        btn.disabled = false;
-        alert('Process Finished!');
+        alert('Done!');
     }
 </script>
 </body>
