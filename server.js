@@ -151,5 +151,3 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
 app.listen(PORT, () => console.log(`🚀 Fast Mailer on port ${PORT}`)); 
 
 
-app.use(express.static(path.join(__dirname, 'public')));
-
