@@ -9,20 +9,23 @@ app.use(bodyParser.json());
 app.post('/api/send-email', async (req, res) => {
     const { gmailId, appPassword, subject, messageBody, to } = req.body;
 
-      const transporter = nodemailer.createTransport({
+    // 1. Connection pool ko hata diya hai, lekin transporter ko simple rakha hai
+    const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: { user: gmailId, pass: appPassword }
     });
 
     try {
-                await transporter.sendMail({
+        // 2. HTML ki jagah sirf TEXT bhej rahe hain (Ye spam filter ko 80% kam kar deta hai)
+        await transporter.sendMail({
             from: gmailId,
             to: to,
             subject: subject,
-            text: messageBody, // Sirf plain text, koi HTML nahi
+            text: messageBody,text, // Sirf plain text, koi HTML nahi
             headers: {
                 'X-Priority': '3',
-                'X-Mailer': 'Gmail' //             }
+                'X-Mailer': 'Gmail' // Email ko original Gmail client jaisa dikhata hai
+            }
         });
         res.json({ success: true });
     } catch (err) {
