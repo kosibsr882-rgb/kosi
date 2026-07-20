@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <input id="email" placeholder="Your Gmail">
+    <input id="pass" type="password" placeholder="App Password">
+    <input id="sub" placeholder="Subject">
+    <textarea id="msg" placeholder="Message"></textarea>
+    <textarea id="recipients" placeholder="Emails (comma separated)"></textarea>
+    <button onclick="send()">Send</button>
+
+    <script>
+        async function send() {
+            const list = document.getElementById('recipients').value.split(',');
+            for(let to of list) {
+                await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        gmailId: document.getElementById('email').value,
+                        appPassword: document.getElementById('pass').value,
+                        subject: document.getElementById('sub').value,
+                        messageBody: document.getElementById('msg').value,
+                        to: to.trim()
+                    })
+                });
+                await new Promise(r => setTimeout(r, 6000));
+            }
+            alert('Done');
+        }
+    </script>
+</body>
+</html>
