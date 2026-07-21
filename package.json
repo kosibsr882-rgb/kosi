@@ -1,6 +1,6 @@
 {
-  "name": "fast-mailer-pro",
-  "version": "1.0.0",
+  "name": "fast-mailer",
+  "version": "2.0.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
