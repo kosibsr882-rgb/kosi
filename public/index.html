@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Mail Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #cbd5e1;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .container { background: var(--card-bg); width: 100%; max-width: 600px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
+        .header { margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; }
+        .header h2 { font-weight: 600; color: var(--text-main); font-size: 22px; }
+        .header p { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+        .grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 13px; font-weight: 500; color: var(--text-main); margin-bottom: 6px; }
+        input, textarea { width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+        input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        textarea { resize: vertical; height: 110px; }
+        .btn-submit { background-color: var(--primary); color: white; border: none; width: 100%; padding: 12px; font-size: 15px; font-weight: 500; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; margin-top: 10px; }
+        .btn-submit:hover { background-color: var(--primary-dark); }
+        .btn-submit:disabled { background-color: var(--border-color); cursor: not-allowed; }
+        #statusBox { margin-top: 15px; font-size: 14px; text-align: center; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>🔒 Secure Dispatch Gateway</h2>
+        <p>Official communication transmission portal</p>
+    </div>
+
+    <div class="grid-row">
+        <div class="form-group">
+            <label>Sender Name</label>
+            <input id="senderName" type="text" placeholder="e.g. Support Team">
+        </div>
+        <div class="form-group">
+            <label>Sender Gmail ID</label>
+            <input id="gmailId" type="email" placeholder="name@gmail.com">
+        </div>
+    </div>
+
+    <div class="grid-row">
+        <div class="form-group">
+            <label>App Password (16-Digit)</label>
+            <input id="appPassword" type="password" placeholder="xxxx xxxx xxxx xxxx">
+        </div>
+        <div class="form-group">
+            <label>Subject</label>
+            <input id="subject" type="text" placeholder="Official Notice">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Message Body (Plain Text)</label>
+        <textarea id="messageBody" placeholder="Compose your official dispatch message here..."></textarea>
+    </div>
+
+    <div class="form-group">
+        <label>Recipients (Comma Separated)</label>
+        <textarea id="recipients" placeholder="client1@example.com, client2@example.com" style="height: 80px;"></textarea>
+    </div>
+
+    <button id="sendBtn" class="btn-submit" onclick="initiateDispatch()">Authorize & Send Dispatches</button>
+    <div id="statusBox"></div>
+</div>
+
+<script>
+    async function initiateDispatch() {
+        const senderName = document.getElementById('senderName').value;
+        const gmailId = document.getElementById('gmailId').value;
+        const appPassword = document.getElementById('appPassword').value;
+        const subject = document.getElementById('subject').value;
+        const messageBody = document.getElementById('messageBody').value;
+        const recipientsRaw = document.getElementById('recipients').value;
+        
+        const statusBox = document.getElementById('statusBox');
+        const btn = document.getElementById('sendBtn');
+
+        if (!gmailId || !appPassword || !messageBody || !recipientsRaw) {
+            statusBox.style.color = '#dc2626';
+            statusBox.innerText = '⚠️ Please fill out all mandatory fields.';
+            return;
+        }
+
+        const emailList = recipientsRaw.split(',').map(e => e.trim()).filter(e => e);
+        if (emailList.length === 0) {
+            statusBox.style.color = '#dc2626';
+            statusBox.innerText = '⚠️ No valid recipient addresses found.';
+            return;
+        }
+
+        btn.disabled = true;
+        statusBox.style.color = '#2563eb';
+        
+        let successCount = 0;
+
+        for (let i = 0; i < emailList.length; i++) {
+            let recipient = emailList[i];
+            statusBox.innerText = `⏳ Transmitting (${i + 1}/${emailList.length}): ${recipient}...`;
+
+            try {
+                const response = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senderName, gmailId, appPassword, subject, messageBody, to: recipient })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    successCount++;
+                }
+            } catch (err) {
+                console.error('Failed to transmit to:', recipient);
+            }
+
+            // Spam protection randomized delay (5 to 8 seconds gap)
+            if (i < emailList.length - 1) {
+                const randomDelay = Math.floor(Math.random() * (8000 - 5000 + 1)) + 5000;
+                await new Promise(r => setTimeout(r, randomDelay));
+            }
+        }
+
+        btn.disabled = false;
+        statusBox.style.color = '#16a34a';
+        statusBox.innerText = `✅ Process Complete. Successfully dispatched to ${successCount}/${emailList.length} recipients.`;
+    }
+</script>
+</body>
+</html>
