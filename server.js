@@ -11,10 +11,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.post('/api/send-email', async (req, res) => {
-    const { gmailId, appPassword, subject, messageBody, to } = req.body;
+    const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
     
     if (!gmailId || !appPassword || !to || !messageBody) {
-        return res.status(400).json({ success: false, message: 'Required fields are missing' });
+        return res.status(400).json({ success: false, message: 'All required fields must be filled.' });
     }
 
     const transporter = nodemailer.createTransport({
@@ -27,9 +27,9 @@ app.post('/api/send-email', async (req, res) => {
 
     try {
         await transporter.sendMail({
-            from: gmailId.trim(),
+            from: senderName ? `"${senderName.trim()}" <${gmailId.trim()}>` : gmailId.trim(),
             to: to.trim(),
-            subject: subject || 'No Subject',
+            subject: subject ? subject.trim() : 'Notification',
             text: messageBody
         });
         res.json({ success: true });
@@ -39,4 +39,4 @@ app.post('/api/send-email', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Official Mailer Service running on port ${PORT}`));
