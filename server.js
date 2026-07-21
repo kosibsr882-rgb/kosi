@@ -24,7 +24,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(session({
 
-  secret: process.env.SESSION_SECRET || 'fast-mailer-secret-2024',
+  secret: process.env.SESSION_SECRET || 'fast-mailer-secret-2023',
 
   resave: false,
 
@@ -72,7 +72,7 @@ app.post('/login', (req, res) => {
 
   const validUser = process.env.ADMIN_USER || 'admin';
 
-  const validPass = process.env.ADMIN_PASS || 'admin123';
+  const validPass = process.env.ADMIN_PASS || 'admin1234';
 
   if (username === validUser && password === validPass) {
 
