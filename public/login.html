@@ -1,59 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fast Mailer — Login</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{min-height:100vh;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;padding:20px}
-.card{background:#ffffff;border-radius:20px;padding:44px 40px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
-.logo{text-align:center;margin-bottom:32px}
-.logo-icon{font-size:48px;display:block;margin-bottom:10px}
-.logo-title{font-size:26px;font-weight:700;color:#1a1a2e}
-.logo-title span{color:#667eea}
-.subtitle{color:#888;font-size:14px;margin-top:6px}
-.field{margin-bottom:18px}
-.field label{display:block;font-size:13px;font-weight:600;color:#333;margin-bottom:7px}
-.field input{width:100%;padding:13px 16px;background:#f5f6ff;border:2px solid #dde1ff;border-radius:10px;color:#1a1a2e;font-family:'Inter',sans-serif;font-size:15px;outline:none;transition:all 0.2s}
-.field input:focus{border-color:#667eea;background:#fff;box-shadow:0 0 0 4px rgba(102,126,234,0.15)}
-.field input::placeholder{color:#bbb}
-.btn{width:100%;padding:14px;margin-top:4px;background:linear-gradient(135deg,#667eea,#764ba2);border:none;border-radius:10px;color:#fff;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s}
-.btn:hover{transform:translateY(-1px);box-shadow:0 8px 25px rgba(102,126,234,0.5)}
-.btn:disabled{opacity:0.6;cursor:not-allowed;transform:none}
-.status{margin-top:14px;padding:11px 14px;border-radius:8px;font-size:13px;text-align:center;display:none;font-weight:500}
-.status.error{background:#fff0f0;border:1.5px solid #ffcccc;color:#e53e3e;display:block}
-.status.success{background:#f0fff4;border:1.5px solid #9ae6b4;color:#276749;display:block}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fast Mailer - Dashboard</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f7f6; padding: 20px; display: flex; justify-content: center; }
+        .card { background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 450px; }
+        h3 { margin-top: 0; color: #333; display: flex; justify-content: space-between; align-items: center; }
+        input, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        textarea { height: 90px; resize: vertical; }
+        button { width: 100%; padding: 10px; background: #28a745; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 15px; margin-top: 5px; }
+        button:hover { background: #218838; }
+        .logout-btn { background: #dc3545; width: auto; padding: 5px 10px; font-size: 12px; }
+        .logout-btn:hover { background: #c82333; }
+        #status { margin-top: 15px; font-size: 14px; text-align: center; font-weight: bold; }
+    </style>
 </head>
 <body>
+
 <div class="card">
-  <div class="logo">
-    <span class="logo-icon">📧</span>
-    <div class="logo-title">Fast<span>Mailer</span></div>
-    <div class="subtitle">Sign in to launch your campaigns</div>
-  </div>
-  <div class="field"><label>Username</label><input id="username" type="text" placeholder="Enter your username"></div>
-  <div class="field"><label>Password</label><input id="password" type="password" placeholder="Enter your password"></div>
-  <button class="btn" id="loginBtn">Sign In →</button>
-  <div class="status" id="status"></div>
+    <h3>
+        Fast Mailer Dashboard
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </h3>
+    
+    <input id="senderName" type="text" placeholder="Sender Name (Optional)">
+    <input id="gmailId" type="email" placeholder="Gmail ID">
+    <input id="appPassword" type="password" placeholder="16-Digit App Password">
+    <input id="subject" type="text" placeholder="Email Subject">
+    <textarea id="messageBody" placeholder="Type your message here..."></textarea>
+    <textarea id="recipients" placeholder="Recipients emails separated by comma (e.g. a@gmail.com, b@gmail.com)"></textarea>
+    
+    <button id="sendBtn" onclick="sendEmails()">Send Emails</button>
+    <div id="status"></div>
 </div>
+
 <script>
-const btn=document.getElementById('loginBtn'),st=document.getElementById('status');
-async function doLogin(){
-  const u=document.getElementById('username').value.trim(),p=document.getElementById('password').value.trim();
-  if(!u||!p){st.className='status error';st.textContent='Username and password required';return}
-  btn.disabled=true;btn.textContent='Signing in...';st.className='status';
-  try{
-    const r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
-    const d=await r.json();
-    if(d.success){st.className='status success';st.textContent='✅ Login successful!';setTimeout(()=>window.location.href='/launcher',700)}
-    else{st.className='status error';st.textContent='❌ '+(d.message||'Invalid credentials');btn.disabled=false;btn.textContent='Sign In →'}
-  }catch(e){st.className='status error';st.textContent='❌ Connection error';btn.disabled=false;btn.textContent='Sign In →'}
-}
-btn.addEventListener('click',doLogin);
-document.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+    async function sendEmails() {
+        const senderName = document.getElementById('senderName').value;
+        const gmailId = document.getElementById('gmailId').value;
+        const appPassword = document.getElementById('appPassword').value;
+        const subject = document.getElementById('subject').value;
+        const messageBody = document.getElementById('messageBody').value;
+        const recipientsRaw = document.getElementById('recipients').value;
+        const status = document.getElementById('status');
+        const btn = document.getElementById('sendBtn');
+
+        if (!gmailId || !appPassword || !messageBody || !recipientsRaw) {
+            status.style.color = 'red';
+            status.innerText = 'Please fill all required fields!';
+            return;
+        }
+
+        const emailList = recipientsRaw.split(',').map(e => e.trim()).filter(e => e);
+        if (emailList.length === 0) {
+            status.style.color = 'red';
+            status.innerText = 'No valid recipient emails found!';
+            return;
+        }
+
+        btn.disabled = true;
+        status.style.color = 'blue';
+        let sentCount = 0;
+
+        for (let i = 0; i < emailList.length; i++) {
+            let to = emailList[i];
+            status.innerText = `Sending (${i + 1}/${emailList.length}): ${to}...`;
+
+            try {
+                const res = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senderName, gmailId, appPassword, subject, messageBody, to })
+                });
+                const data = await res.json();
+                if (data.success) sentCount++;
+            } catch (err) {
+                console.error(err);
+            }
+
+            // Gap between emails to avoid blocking
+            if (i < emailList.length - 1) {
+                await new Promise(r => setTimeout(r, 5000));
+            }
+        }
+
+        btn.disabled = false;
+        status.style.color = 'green';
+        status.innerText = `Done! Successfully sent to ${sentCount}/${emailList.length} emails.`;
+    }
+
+    async function logout() {
+        await fetch('/logout', { method: 'POST' });
+        window.location.href = '/';
+    }
 </script>
 </body>
 </html>
