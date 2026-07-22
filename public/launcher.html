@@ -1,99 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fast Mailer - Dashboard</title>
-    <style>
-        body { font-family: sans-serif; background: #f4f7f6; padding: 20px; display: flex; justify-content: center; }
-        .card { background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 450px; }
-        h3 { margin-top: 0; color: #333; display: flex; justify-content: space-between; align-items: center; }
-        input, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        textarea { height: 90px; resize: vertical; }
-        button { width: 100%; padding: 10px; background: #28a745; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 15px; margin-top: 5px; }
-        button:hover { background: #218838; }
-        .logout-btn { background: #dc3545; width: auto; padding: 5px 10px; font-size: 12px; }
-        .logout-btn:hover { background: #c82333; }
-        #status { margin-top: 15px; font-size: 14px; text-align: center; font-weight: bold; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast Mailer — Pro</title>
+<!-- Quill Rich Text CSS -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<style>
+    /* Aapka purana CSS yahan rahega... bas niche thoda add karein */
+    #editor { height: 180px; background: #fff; border-radius: 10px; }
+</style>
 </head>
 <body>
 
-<div class="card">
-    <h3>
-        Fast Mailer Dashboard
-        <button class="logout-btn" onclick="logout()">Logout</button>
-    </h3>
-    
-    <input id="senderName" type="text" placeholder="Sender Name (Optional)">
-    <input id="gmailId" type="email" placeholder="Gmail ID">
-    <input id="appPassword" type="password" placeholder="16-Digit App Password">
-    <input id="subject" type="text" placeholder="Email Subject">
-    <textarea id="messageBody" placeholder="Type your message here..."></textarea>
-    <textarea id="recipients" placeholder="Recipients emails separated by comma (e.g. a@gmail.com, b@gmail.com)"></textarea>
-    
-    <button id="sendBtn" onclick="sendEmails()">Send Emails</button>
-    <div id="status"></div>
+<div class="header">
+  <div class="logo">📧 Fast<span>Mailer</span></div>
 </div>
 
+<div class="main-grid">
+  <div class="card">
+    <div class="card-title">⚙️ Sender Config</div>
+    <!-- ... purane fields waise hi rahege ... -->
+    <div class="field"><label>Sender Name</label><input id="senderName" type="text"></div>
+    <div class="field"><label>Gmail ID</label><input id="gmailId" type="email"></div>
+    <div class="field"><label>App Password</label><input id="appPassword" type="password"></div>
+    <div class="field"><label>Subject</label><input id="subject" type="text"></div>
+    
+    <div class="field">
+      <label>Message Body (Rich Text)</label>
+      <div id="editor"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">👥 Recipients</div>
+    <textarea id="recipients" placeholder="Emails here..."></textarea>
+  </div>
+</div>
+
+<div class="action-row">
+  <button class="send-btn" id="sendBtn" onclick="sendAll()">🚀 Send All Emails</button>
+</div>
+
+<!-- Quill JS Library -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <script>
-    async function sendEmails() {
+    // Quill Editor Initialize
+    var quill = new Quill('#editor', {
+        theme: 'snow',
+        modules: { toolbar: [['bold', 'italic', 'underline'], ['link'], [{ 'list': 'bullet'}]] }
+    });
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    async function sendAll() {
+        const emails = document.getElementById('recipients').value.split(/[\n,]+/).map(e=>e.trim()).filter(e=>e);
         const senderName = document.getElementById('senderName').value;
         const gmailId = document.getElementById('gmailId').value;
         const appPassword = document.getElementById('appPassword').value;
         const subject = document.getElementById('subject').value;
-        const messageBody = document.getElementById('messageBody').value;
-        const recipientsRaw = document.getElementById('recipients').value;
-        const status = document.getElementById('status');
+        const messageBody = quill.root.innerHTML; // Rich text HTML content
+
         const btn = document.getElementById('sendBtn');
-
-        if (!gmailId || !appPassword || !messageBody || !recipientsRaw) {
-            status.style.color = 'red';
-            status.innerText = 'Please fill all required fields!';
-            return;
-        }
-
-        const emailList = recipientsRaw.split(',').map(e => e.trim()).filter(e => e);
-        if (emailList.length === 0) {
-            status.style.color = 'red';
-            status.innerText = 'No valid recipient emails found!';
-            return;
-        }
-
         btn.disabled = true;
-        status.style.color = 'blue';
-        let sentCount = 0;
 
-        for (let i = 0; i < emailList.length; i++) {
-            let to = emailList[i];
-            status.innerText = `Sending (${i + 1}/${emailList.length}): ${to}...`;
-
+        for (const email of emails) {
+            // Random delay between 3 to 7 seconds to avoid spam triggers
+            const randomDelay = Math.floor(Math.random() * (7000 - 3000 + 1) + 3000);
+            
             try {
                 const res = await fetch('/api/send-email', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ senderName, gmailId, appPassword, subject, messageBody, to })
+                    body: JSON.stringify({ senderName, gmailId, appPassword, subject, messageBody, to: email })
                 });
-                const data = await res.json();
-                if (data.success) sentCount++;
-            } catch (err) {
-                console.error(err);
-            }
+                
+                if (res.ok) console.log('Sent to:', email);
+                else console.error('Failed:', email);
+            } catch (e) { console.error('Error:', e); }
 
-            // Gap between emails to avoid blocking
-            if (i < emailList.length - 1) {
-                await new Promise(r => setTimeout(r, 5000));
-            }
+            await sleep(randomDelay);
         }
-
         btn.disabled = false;
-        status.style.color = 'green';
-        status.innerText = `Done! Successfully sent to ${sentCount}/${emailList.length} emails.`;
-    }
-
-    async function logout() {
-        await fetch('/logout', { method: 'POST' });
-        window.location.href = '/';
+        alert('Process Finished!');
     }
 </script>
 </body>
