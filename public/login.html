@@ -3,97 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fast Mailer - Dashboard</title>
+    <title>Fast Mailer - Login</title>
     <style>
-        body { font-family: sans-serif; background: #f4f7f6; padding: 20px; display: flex; justify-content: center; }
-        .card { background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 450px; }
-        h3 { margin-top: 0; color: #333; display: flex; justify-content: space-between; align-items: center; }
-        input, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        textarea { height: 90px; resize: vertical; }
-        button { width: 100%; padding: 10px; background: #28a745; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 15px; margin-top: 5px; }
-        button:hover { background: #218838; }
-        .logout-btn { background: #dc3545; width: auto; padding: 5px 10px; font-size: 12px; }
-        .logout-btn:hover { background: #c82333; }
-        #status { margin-top: 15px; font-size: 14px; text-align: center; font-weight: bold; }
+        body { font-family: sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-card { background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 300px; }
+        h3 { text-align: center; margin-bottom: 20px; color: #333; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #007bff; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0056b3; }
+        #errorMsg { color: red; font-size: 13px; text-align: center; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h3>
-        Fast Mailer Dashboard
-        <button class="logout-btn" onclick="logout()">Logout</button>
-    </h3>
-    
-    <input id="senderName" type="text" placeholder="Sender Name (Optional)">
-    <input id="gmailId" type="email" placeholder="Gmail ID">
-    <input id="appPassword" type="password" placeholder="16-Digit App Password">
-    <input id="subject" type="text" placeholder="Email Subject">
-    <textarea id="messageBody" placeholder="Type your message here..."></textarea>
-    <textarea id="recipients" placeholder="Recipients emails separated by comma (e.g. a@gmail.com, b@gmail.com)"></textarea>
-    
-    <button id="sendBtn" onclick="sendEmails()">Send Emails</button>
-    <div id="status"></div>
+<div class="login-card">
+    <h3>Admin Login</h3>
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <div id="errorMsg"></div>
 </div>
 
 <script>
-    async function sendEmails() {
-        const senderName = document.getElementById('senderName').value;
-        const gmailId = document.getElementById('gmailId').value;
-        const appPassword = document.getElementById('appPassword').value;
-        const subject = document.getElementById('subject').value;
-        const messageBody = document.getElementById('messageBody').value;
-        const recipientsRaw = document.getElementById('recipients').value;
-        const status = document.getElementById('status');
-        const btn = document.getElementById('sendBtn');
+    async function login() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const errorMsg = document.getElementById('errorMsg');
 
-        if (!gmailId || !appPassword || !messageBody || !recipientsRaw) {
-            status.style.color = 'red';
-            status.innerText = 'Please fill all required fields!';
-            return;
+        const res = await fetch('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            window.location.href = '/launcher';
+        } else {
+            errorMsg.innerText = data.message || 'Invalid credentials';
         }
-
-        const emailList = recipientsRaw.split(',').map(e => e.trim()).filter(e => e);
-        if (emailList.length === 0) {
-            status.style.color = 'red';
-            status.innerText = 'No valid recipient emails found!';
-            return;
-        }
-
-        btn.disabled = true;
-        status.style.color = 'blue';
-        let sentCount = 0;
-
-        for (let i = 0; i < emailList.length; i++) {
-            let to = emailList[i];
-            status.innerText = `Sending (${i + 1}/${emailList.length}): ${to}...`;
-
-            try {
-                const res = await fetch('/api/send-email', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ senderName, gmailId, appPassword, subject, messageBody, to })
-                });
-                const data = await res.json();
-                if (data.success) sentCount++;
-            } catch (err) {
-                console.error(err);
-            }
-
-            // Gap between emails to avoid blocking
-            if (i < emailList.length - 1) {
-                await new Promise(r => setTimeout(r, 5000));
-            }
-        }
-
-        btn.disabled = false;
-        status.style.color = 'green';
-        status.innerText = `Done! Successfully sent to ${sentCount}/${emailList.length} emails.`;
-    }
-
-    async function logout() {
-        await fetch('/logout', { method: 'POST' });
-        window.location.href = '/';
     }
 </script>
 </body>
