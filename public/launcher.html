@@ -51,7 +51,7 @@
             margin-top: 15px;
         }
         .logout-btn:hover { background: #dc2626; }
-        #status { text-align: center; font-size: 14px; margin-top: 10px; }
+        #status { text-align: center; font-size: 14px; margin-top: 12px; word-break: break-all; }
     </style>
 </head>
 <body>
@@ -60,11 +60,11 @@
         <form id="mailForm">
             <input type="text" id="senderName" placeholder="Sender Name (Optional)">
             <input type="email" id="gmailId" placeholder="Your Gmail ID" required>
-            <input type="password" id="appPassword" placeholder="Gmail App Password" required>
+            <input type="password" id="appPassword" placeholder="16-digit Gmail App Password" required>
             <input type="email" id="to" placeholder="Recipient Email (To)" required>
             <input type="text" id="subject" placeholder="Email Subject" required>
             <textarea id="messageBody" placeholder="Message Body..." required></textarea>
-            <button type="submit">Send Email</button>
+            <button type="submit" id="sendBtn">Send Email</button>
         </form>
         <button class="logout-btn" id="logoutBtn">Logout</button>
         <div id="status"></div>
@@ -74,8 +74,11 @@
         document.getElementById('mailForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const status = document.getElementById('status');
-            status.textContent = 'Sending...';
+            const sendBtn = document.getElementById('sendBtn');
+            
+            status.textContent = 'Sending email... Please wait.';
             status.style.color = '#38bdf8';
+            sendBtn.disabled = true;
 
             const payload = {
                 senderName: document.getElementById('senderName').value,
@@ -97,12 +100,14 @@
                     status.textContent = 'Email sent successfully! 🚀';
                     status.style.color = '#22c55e';
                 } else {
-                    status.textContent = 'Error: ' + data.message;
+                    status.textContent = 'Failed: ' + data.message;
                     status.style.color = '#f87171';
                 }
             } catch (err) {
-                status.textContent = 'Network error!';
+                status.textContent = 'Network error occurred!';
                 status.style.color = '#f87171';
+            } finally {
+                sendBtn.disabled = false;
             }
         });
 
