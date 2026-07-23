@@ -160,7 +160,6 @@ async function sendAll(){
   
   let ok=0,fail=0;
 
-  // Spam se bachne ke liye ek-ek karke gap ke sath email bhejna (Sequential loop with delay)
   for(let i=0; i<emails.length; i++){
     const email = emails[i];
     
@@ -179,9 +178,8 @@ async function sendAll(){
 
     setProgress(i + 1, emails.length);
 
-    // Har email ke baad 1.5 second ka natural gap taaki Gmail spam filter flag na kare
     if(i < emails.length - 1) {
-      await sleep(1500);
+      await sleep(3500);
     }
   }
 
