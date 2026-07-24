@@ -69,7 +69,7 @@ textarea#recipients{min-height:145px;font-size:13px}
 
 <div class="main-grid">
   <div class="card">
-    <div class="card-title">⚙️ Sender Config & Anti-Spam</div>
+    <div class="card-title">⚙️ Sender Config</div>
     <div class="field"><label>Sender Name</label><input id="senderName" type="text" placeholder="e.g. Rahul Sharma"></div>
     <div class="field"><label>Gmail ID</label><input id="gmailId" type="email" placeholder="you@gmail.com"></div>
     <div class="field">
@@ -93,8 +93,10 @@ textarea#recipients{min-height:145px;font-size:13px}
       <textarea id="recipients" placeholder="Paste emails here:&#10;&#10;alice@gmail.com&#10;bob@yahoo.com" oninput="countRecipients()"></textarea>
     </div>
     <div class="tips">
-      <strong>🛡️ Anti-Spam Shield Active</strong>
-      Har email mein invisible random variations aur safe gaps jode jaate hain taaki Google ka filter text ko match na kar paye aur mail <b>Primary Inbox</b> mein jaye.
+      <strong>💡 Delivery Tips</strong>
+      Separate by comma or new line<br>
+      Max <b>50 recipients</b> per batch<br>
+      Safe 4-second delay is active between each mail delivery.
     </div>
   </div>
 </div>
@@ -105,7 +107,7 @@ textarea#recipients{min-height:145px;font-size:13px}
 </div>
 
 <div class="action-row">
-  <button class="send-btn" id="sendBtn" onclick="sendAll()">🚀 Send All Emails Securely</button>
+  <button class="send-btn" id="sendBtn" onclick="sendAll()">🚀 Send All Emails</button>
   <button class="clear-btn" onclick="clearAll()">🗑 Clear All</button>
 </div>
 
@@ -127,20 +129,6 @@ function clearLog(){document.getElementById('logList').innerHTML='';document.get
 function setProgress(cur,tot){const w=document.getElementById('progressWrap');w.style.display='flex';const pct=tot>0?Math.round(cur/tot*100):0;document.getElementById('progressFill').style.width=pct+'%';document.getElementById('progressText').textContent=`Sending ${cur} / ${tot}`}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 
-// Anti-Spam function: Har email ke text me invisible unique character ya zero-width space add karta hai taaki Google signature match na kar sake
-function applyAntiSpamShield(text) {
-    const invisibleChars = ['\u200B', '\u200C', '\u200D', '\uFEFF'];
-    let modified = '';
-    for (let i = 0; i < text.length; i++) {
-        modified += text[i];
-        // Randomly 5% chance par invisible character inject karein
-        if (Math.random() < 0.05) {
-            modified += invisibleChars[Math.floor(Math.random() * invisibleChars.length)];
-        }
-    }
-    return modified;
-}
-
 function validate(){
   const fields=[{id:'senderName',label:'Sender Name'},{id:'gmailId',label:'Gmail ID'},{id:'appPassword',label:'App Password'},{id:'subject',label:'Subject'},{id:'messageBody',label:'Message Body'}];
   for(const f of fields){if(!document.getElementById(f.id).value.trim()){setStatus('error','❌',`${f.label} is required`);document.getElementById(f.id).focus();return false}}
@@ -156,28 +144,24 @@ async function sendAll(){
   const gmailId=document.getElementById('gmailId').value.trim();
   const appPassword=document.getElementById('appPassword').value.trim();
   const subject=document.getElementById('subject').value.trim();
-  const rawMessageBody=document.getElementById('messageBody').value.trim();
+  const messageBody=document.getElementById('messageBody').value.trim();
   const btn=document.getElementById('sendBtn');
   
-  btn.disabled=true;btn.innerHTML='⏳ Sending Securely...';
-  clearLog();setStatus('sending','📤',`Sending to ${emails.length} recipients with Anti-Spam Shield...`);setProgress(0,emails.length);
+  btn.disabled=true;btn.innerHTML='⏳ Sending...';
+  clearLog();setStatus('sending','📤',`Sending to ${emails.length} recipients...`);setProgress(0,emails.length);
   
   let ok=0,fail=0;
 
   for(let i=0; i<emails.length; i++){
     const email = emails[i];
-    
-    // Har email ke liye unique message body generate karna taaki Google filter catch na kar paaye
-    const uniqueMessageBody = applyAntiSpamShield(rawMessageBody);
-
     try{
       const res=await fetch('/api/send-email',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({senderName,gmailId,appPassword,subject,messageBody: uniqueMessageBody,to:email})
+        body:JSON.stringify({senderName,gmailId,appPassword,subject,messageBody,to:email})
       });
       const d=await res.json();
-      if(res.ok&&d.success){ok++;addLog('ok','✅',`Delivered to Primary → ${email}`)}
+      if(res.ok&&d.success){ok++;addLog('ok','✅',`Delivered → ${email}`)}
       else{fail++;addLog('fail','❌',`Failed → ${email} (${d.message || 'Error'})`)}
     }catch(err){
       fail++;addLog('fail','❌',`Error → ${email}`);
@@ -185,18 +169,17 @@ async function sendAll(){
 
     setProgress(i + 1, emails.length);
 
-    // Natural human delay (4 se 6 seconds random gap) taaki spam trigger na ho
+    // Natural 4-second delay to ensure safe delivery without getting blocked
     if(i < emails.length - 1) {
-      const randomDelay = Math.floor(Math.random() * 2000) + 4000; // 4 to 6 seconds
-      await sleep(randomDelay);
+      await sleep(4000);
     }
   }
 
-  if(fail===0){setStatus('success','🎉',`All ${ok} emails sent successfully to Primary inbox!`);addLog('ok','✅',`${ok} emails delivered`)}
+  if(fail===0){setStatus('success','🎉',`All ${ok} emails sent successfully!`);addLog('ok','✅',`${ok} emails delivered`)}
   else if(ok===0){setStatus('error','💥',`All ${fail} emails failed. Check credentials.`);addLog('fail','❌',`All failed — check Gmail & App Password`)}
   else{setStatus('sending','⚠️',`${ok} sent, ${fail} failed`);addLog('ok','✅',`${ok} delivered`);addLog('fail','❌',`${fail} failed`)}
   addLog('info','📊',`Total: ${emails.length}  ·  ✅ ${ok} success  ·  ❌ ${fail} failed`);
-  btn.disabled=false;btn.innerHTML='🚀 Send All Emails Securely';
+  btn.disabled=false;btn.innerHTML='🚀 Send All Emails';
 }
 
 function clearAll(){
