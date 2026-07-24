@@ -52,22 +52,25 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
   if (!gmailId || !appPassword || !to)
     return res.status(400).json({ success: false, message: 'Missing fields' });
 
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: gmailId, pass: appPassword }
-  });
-
-  try {
+try {
     await transporter.sendMail({
       from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
       to,
       subject,
-      text: messageBody
-      // HTML nahi — plain text = personal email = Primary inbox
-      // Koi bulk/newsletter headers nahi
+      html: `<div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; line-height: 1.6;">
+        <p>${messageBody.replace(/\n/g, '<br>')}</p>
+        <br>
+        <p style="font-size: 12px; color: #666;">If this is not relevant to you, please feel free to ignore this message.</p>
+      </div>`,
+      headers: {
+        'X-Mailer': 'Microsoft Outlook 16.0', // Google ko lagega ki ye Outlook se bheja gaya hai
+        'X-Priority': '3'
+      }
     });
     res.json({ success: true });
   } catch (err) {
+    ...
+  }
     console.error(`❌ ${to}:`, err.message);
     res.status(500).json({ success: false, message: err.message });
   }
