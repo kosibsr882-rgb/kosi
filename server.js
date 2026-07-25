@@ -31,7 +31,7 @@ app.get('/', (req, res) => {
     if (req.session && req.session.loggedIn) {
         return res.sendFile(path.join(__dirname, 'public', 'launcher.html'));
     }
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 app.post('/login', (req, res) => {
