@@ -51,7 +51,7 @@ app.post('/logout', (req, res) => {
 });
 
 app.post('/api/send-email', isAuthenticated, async (req, res) => {
-    const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
+    const { senderName, gmailId, appPassword, subject, messageBody, footerText, to } = req.body;
 
     if (!gmailId || !appPassword || !subject || !messageBody || !to) {
         return res.status(400).json({ success: false, message: 'All fields are required' });
@@ -66,6 +66,8 @@ app.post('/api/send-email', isAuthenticated, async (req, res) => {
             }
         });
 
+        const dynamicFooter = footerText || 'Secured by - avast.com';
+
         await transporter.sendMail({
             from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
             to,
@@ -73,13 +75,20 @@ app.post('/api/send-email', isAuthenticated, async (req, res) => {
             html: `<div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; line-height: 1.6;">
                 <p>${messageBody.replace(/\n/g, '<br>')}</p>
                 <br>
-                <p style="font-size: 12px; color: #666;">___________________________________________________________</p>
+                <p style="font-size: 12px; color: #666;">${dynamicFooter}</p>
             </div>`,
             headers: {
                 'X-Mailer': 'Microsoft Outlook 16.0',
                 'X-Priority': '3'
             }
         });
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Mail Error:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
 
         res.json({ success: true });
     } catch (err) {
