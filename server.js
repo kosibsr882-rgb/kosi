@@ -90,13 +90,6 @@ app.post('/api/send-email', isAuthenticated, async (req, res) => {
     }
 });
 
-        res.json({ success: true });
-    } catch (err) {
-        console.error('Mail Error:', err.message);
-        res.status(500).json({ success: false, message: err.message });
-    }
-});
-
 app.listen(PORT, () => {
     console.log(`🚀 Fast Mailer on port ${PORT}`);
 });
