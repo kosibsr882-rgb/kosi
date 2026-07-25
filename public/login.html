@@ -3,60 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Fast Mailer</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #0f172a;
-            color: #ffffff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .login-box {
-            background: #1e293b;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            width: 300px;
-        }
-        h2 { text-align: center; margin-bottom: 20px; color: #38bdf8; }
-        input {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #475569;
-            background: #0f172a;
-            color: white;
-            border-radius: 5px;
-            box-sizing: border-box;
-        }
-        button {
-            width: 100%;
-            padding: 10px;
-            background: #3b82f6;
-            border: none;
-            color: white;
-            font-weight: bold;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        button:hover { background: #2563eb; }
-        #error-msg { color: #f87171; text-align: center; font-size: 14px; margin-top: 10px; }
-    </style>
+    <title>Fast Mailer - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div class="login-box">
-        <h2>Admin Login</h2>
-        <form id="loginForm">
-            <input type="text" id="username" placeholder="Username" required>
-            <input type="password" id="password" placeholder="Password" required>
-            <button type="submit">Login</button>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">🔐 Admin Login</h2>
+        
+        <div id="errorMsg" class="mb-4 p-3 bg-red-100 text-red-700 rounded text-sm hidden"></div>
+
+        <form id="loginForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Username</label>
+                <input type="text" id="username" required class="mt-1 w-full p-2 border rounded border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Password</label>
+                <input type="password" id="password" required class="mt-1 w-full p-2 border rounded border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700">Login</button>
         </form>
-        <div id="error-msg"></div>
     </div>
 
     <script>
@@ -64,7 +30,7 @@
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            const errorMsg = document.getElementById('error-msg');
+            const errorMsg = document.getElementById('errorMsg');
 
             try {
                 const response = await fetch('/login', {
@@ -73,14 +39,17 @@
                     body: JSON.stringify({ username, password })
                 });
 
-                const data = await response.json();
-                if (data.success) {
+                const result = await response.json();
+
+                if (result.success) {
                     window.location.href = '/launcher';
                 } else {
-                    errorMsg.textContent = data.message;
+                    errorMsg.textContent = result.message || 'Invalid username or password';
+                    errorMsg.classList.remove('hidden');
                 }
             } catch (err) {
-                errorMsg.textContent = 'Something went wrong!';
+                errorMsg.textContent = 'Server error. Please try again.';
+                errorMsg.classList.remove('hidden');
             }
         });
     </script>
