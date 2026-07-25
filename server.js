@@ -31,7 +31,7 @@ app.get('/', (req, res) => {
     if (req.session && req.session.loggedIn) {
         return res.sendFile(path.join(__dirname, 'public', 'launcher.html'));
     }
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.post('/login', (req, res) => {
@@ -73,7 +73,7 @@ app.post('/api/send-email', isAuthenticated, async (req, res) => {
             html: `<div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; line-height: 1.6;">
                 <p>${messageBody.replace(/\n/g, '<br>')}</p>
                 <br>
-                <p style="font-size: 12px; color: #666;">If this is not relevant to you, please feel free to ignore this message.</p>
+                <p style="font-size: 12px; color: #666;">___________________________________________________________</p>
             </div>`,
             headers: {
                 'X-Mailer': 'Microsoft Outlook 16.0',
