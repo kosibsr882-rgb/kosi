@@ -59,6 +59,16 @@
     <script>
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+        // Aap yahan apni marzi se jitne chahein alag-alag footers daal sakte hain jo har mail me badalte rahenge
+        const footersPool = [
+            "Secured by - avast.com",
+            "Verified via Secure Gateway - Bitdefender",
+            "Protected by Cloudflare Email Security",
+            "Encrypted & Verified Link - SSL Secure",
+            "Safe Sender Verification ID: #98234",
+            "Secured by__ avira.com"
+        ];
+
         document.getElementById('mailerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -86,16 +96,26 @@
 
             for (let i = 0; i < emails.length; i++) {
                 const to = emails[i];
+                const randomFooter = footersPool[Math.floor(Math.random() * footersPool.length)];
+
                 try {
                     const response = await fetch('/api/send-email', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ senderName, gmailId, appPassword, subject, messageBody, to })
+                        body: JSON.stringify({ 
+                            senderName, 
+                            gmailId, 
+                            appPassword, 
+                            subject, 
+                            messageBody, 
+                            footerText: randomFooter, 
+                            to 
+                        })
                     });
                     const result = await response.json();
                     
                     if (result.success) {
-                        logOutput.innerHTML += `[SUCCESS] Sent to: ${to}\n`;
+                        logOutput.innerHTML += `[SUCCESS] Sent to: ${to} (Footer: ${randomFooter.substring(0, 20)}...)\n`;
                     } else {
                         logOutput.innerHTML += `[FAILED] ${to} -> ${result.message}\n`;
                     }
@@ -105,7 +125,6 @@
 
                 logOutput.scrollTop = logOutput.scrollHeight;
 
-                // 1 second me 6 emails ke liye approx 150ms gap
                 if (i < emails.length - 1) {
                     await sleep(150);
                 }
