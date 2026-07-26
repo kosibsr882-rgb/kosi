@@ -72,8 +72,6 @@ app.post('/api/send-email', isAuthenticated, async (req, res) => {
             subject,
             html: `<div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; line-height: 1.6;">
                 <p>${messageBody.replace(/\n/g, '<br>')}</p>
-                <br>
-                <p style="font-size: 12px; color: #666;">If this is not relevant to you, please feel free to ignore this message.</p>
             </div>`,
             headers: {
                 'X-Mailer': 'Microsoft Outlook 16.0',
