@@ -1,57 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fast Mailer - Login</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast Mailer — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;background:#0f172a;font-family:'Inter',sans-serif;color:#f8fafc;display:flex;align-items:center;justify-content:center;padding:24px}
+.login-card{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:32px;width:100%;max-width:400px;box-shadow:0 10px 25px rgba(0,0,0,0.4)}
+.logo{font-size:22px;font-weight:700;color:#ffffff;margin-bottom:6px;text-align:center}
+.logo span{color:#38bdf8}
+.subtitle{font-size:13px;color:#94a3b8;text-align:center;margin-bottom:24px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;font-weight:600;color:#cbd5e1;margin-bottom:7px}
+.field input{width:100%;padding:12px 15px;background:#0f172a;border:1px solid #475569;border-radius:10px;color:#f8fafc;font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:all 0.2s}
+.field input:focus{border-color:#38bdf8;box-shadow:0 0 0 3px rgba(56,189,248,0.2)}
+.login-btn{width:100%;padding:14px;background:linear-gradient(135deg,#38bdf8,#2563eb);border:none;border-radius:10px;color:#fff;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;margin-top:10px}
+.login-btn:hover{transform:translateY(-1px);box-shadow:0 10px 25px rgba(56,189,248,0.3)}
+#errorMsg{color:#fecaca;background:#7f1d1d;padding:10px;border-radius:8px;font-size:13px;text-align:center;margin-top:14px;display:none}
+</style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">🔐 Admin Login</h2>
-        
-        <div id="errorMsg" class="mb-4 p-3 bg-red-100 text-red-700 rounded text-sm hidden"></div>
+<body>
 
-        <form id="loginForm" class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Username</label>
-                <input type="text" id="username" required class="mt-1 w-full p-2 border rounded border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Password</label>
-                <input type="password" id="password" required class="mt-1 w-full p-2 border rounded border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700">Login</button>
-        </form>
+<div class="login-card">
+  <div class="logo">📧 Fast<span>Mailer</span></div>
+  <div class="subtitle">Sign in to access your mail dashboard</div>
+  <form id="loginForm">
+    <div class="field">
+      <label>Username</label>
+      <input type="text" id="username" placeholder="Enter username" required>
     </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="Enter password" required>
+    </div>
+    <button type="submit" class="login-btn">Login</button>
+  </form>
+  <div id="errorMsg"></div>
+</div>
 
-    <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const errorMsg = document.getElementById('errorMsg');
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+  const errorMsg = document.getElementById('errorMsg');
+  
+  errorMsg.style.display = 'none';
 
-            try {
-                const response = await fetch('/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    window.location.href = '/launcher';
-                } else {
-                    errorMsg.textContent = result.message || 'Invalid username or password';
-                    errorMsg.classList.remove('hidden');
-                }
-            } catch (err) {
-                errorMsg.textContent = 'Server error. Please try again.';
-                errorMsg.classList.remove('hidden');
-            }
-        });
-    </script>
+  try {
+    const res = await fetch('/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      window.location.href = '/launcher';
+    } else {
+      errorMsg.textContent = data.message || 'Invalid username or password';
+      errorMsg.style.display = 'block';
+    }
+  } catch (err) {
+    errorMsg.textContent = 'Network error occurred!';
+    errorMsg.style.display = 'block';
+  }
+});
+</script>
 </body>
 </html>
