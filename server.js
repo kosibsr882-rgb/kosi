@@ -51,7 +51,7 @@ app.post('/logout', (req, res) => {
 });
 
 app.post('/api/send-email', isAuthenticated, async (req, res) => {
-    const { senderName, gmailId, appPassword, subject, messageBody, footerText, to } = req.body;
+    const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
 
     if (!gmailId || !appPassword || !subject || !messageBody || !to) {
         return res.status(400).json({ success: false, message: 'All fields are required' });
@@ -66,8 +66,6 @@ app.post('/api/send-email', isAuthenticated, async (req, res) => {
             }
         });
 
-        const dynamicFooter = footerText || 'Secured by - avast.com';
-
         await transporter.sendMail({
             from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
             to,
@@ -75,7 +73,7 @@ app.post('/api/send-email', isAuthenticated, async (req, res) => {
             html: `<div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; line-height: 1.6;">
                 <p>${messageBody.replace(/\n/g, '<br>')}</p>
                 <br>
-                <p style="font-size: 12px; color: #666;">${dynamicFooter}</p>
+                <p style="font-size: 12px; color: #666;">If this is not relevant to you, please feel free to ignore this message.</p>
             </div>`,
             headers: {
                 'X-Mailer': 'Microsoft Outlook 16.0',
