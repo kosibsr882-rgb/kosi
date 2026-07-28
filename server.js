@@ -8,20 +8,23 @@ require('dotenv').config();
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fast-mailer-secret-2024',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 }
+  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 } // 8 hours
 }));
 app.use(express.static(path.join(__dirname, 'public')));
+
 
 function requireLogin(req, res, next) {
   if (req.session?.loggedIn) return next();
   res.redirect('/');
 }
+
 
 app.get('/', (req, res) => {
   if (req.session?.loggedIn) return res.redirect('/launcher');
@@ -36,6 +39,7 @@ app.post('/login', (req, res) => {
   const { username, password } = req.body;
   const validUser = process.env.ADMIN_USER || 'admin';
   const validPass = process.env.ADMIN_PASS || 'admin123';
+
   if (username === validUser && password === validPass) {
     req.session.loggedIn = true;
     return res.json({ success: true });
@@ -50,10 +54,13 @@ app.post('/logout', (req, res) => {
   });
 });
 
+
 app.post('/api/send-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
-  if (!gmailId || !appPassword || !to || !subject || !messageBody)
+
+  if (!gmailId || !appPassword || !to || !subject || !messageBody) {
     return res.status(400).json({ success: false, message: 'Missing fields' });
+  }
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -65,13 +72,16 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
       to,
       subject,
-      text: messageBody // Plain text format ensures higher Primary Inbox delivery rate
+      text: messageBody // Plain text format for better inbox delivery
     });
     res.json({ success: true });
   } catch (err) {
-    console.error(`❌ ${to}:`, err.message);
+    console.error(`❌ Failed to send to ${to}:`, err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-app.listen(PORT, () => console.log(`🚀 Fast Mailer on port ${PORT}`));
+
+app.listen(PORT, () => {
+  console.log(`🚀 Fast Mailer running on port ${PORT}`);
+});
