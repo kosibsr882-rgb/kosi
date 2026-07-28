@@ -1,3 +1,4 @@
+// server.js
 const express    = require('express');
 const session    = require('express-session');
 const bodyParser = require('body-parser');
@@ -8,24 +9,24 @@ require('dotenv').config();
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-
+// Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fast-mailer-secret-2024',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 } // 8 hours
+  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 }
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-
+// Auth middleware
 function requireLogin(req, res, next) {
   if (req.session?.loggedIn) return next();
   res.redirect('/');
 }
 
-
+// Routes
 app.get('/', (req, res) => {
   if (req.session?.loggedIn) return res.redirect('/launcher');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
@@ -54,7 +55,7 @@ app.post('/logout', (req, res) => {
   });
 });
 
-
+// Email API
 app.post('/api/send-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
 
@@ -69,10 +70,11 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
 
   try {
     await transporter.sendMail({
-      from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
+      from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
       to,
       subject,
-      text: messageBody // Plain text format for better inbox delivery
+      text: messageBody,
+      html: `<p>${messageBody}</p>` // HTML + plain text improves inbox placement
     });
     res.json({ success: true });
   } catch (err) {
@@ -81,7 +83,7 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
   }
 });
 
-
+// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Fast Mailer running on port ${PORT}`);
 });
