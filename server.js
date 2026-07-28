@@ -1,3 +1,4 @@
+// server.js
 const express    = require('express');
 const session    = require('express-session');
 const bodyParser = require('body-parser');
@@ -7,8 +8,6 @@ require('dotenv').config();
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
-
-let lastSentTime = 0;
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -52,43 +51,45 @@ app.post('/logout', (req, res) => {
   });
 });
 
-app.post('/api/send-email', requireLogin, async (req, res) => {
-  const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
+// Bulk email API: send 25–30 mails with 1s gap
+app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
+  const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
-  if (!gmailId || !appPassword || !to || !subject || !messageBody) {
+  if (!gmailId || !appPassword || !recipients || !subject || !messageBody) {
     return res.status(400).json({ success: false, message: 'Missing fields' });
   }
-
-  const now = Date.now();
-  if (now - lastSentTime < 1000) {
-    return res.status(429).json({ success: false, message: 'Wait 1 second before sending again' });
-  }
-  lastSentTime = now;
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user: gmailId, pass: appPassword }
   });
 
-  try {
-    await transporter.sendMail({
-      from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
-      to,
-      subject,
-      text: messageBody,
-      html: `<div style="font-size:20px; font-family:Arial; color:#222;">
-               <strong>${messageBody}</strong>
-             </div>`,
-      headers: {
-        'X-Mailer': 'FastMailer',
-        'List-Unsubscribe': '<mailto:unsubscribe@yourdomain.com>'
-      }
+  async function sendWithDelay(to, index) {
+    return new Promise(resolve => {
+      setTimeout(async () => {
+        try {
+          await transporter.sendMail({
+            from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
+            to,
+            subject,
+            text: messageBody,
+            html: `<div style="font-size:20px; font-family:Arial; color:#222;">
+                     <strong>${messageBody}</strong>
+                   </div>`
+          });
+          console.log(`✅ Sent to ${to}`);
+          resolve({ to, success: true });
+        } catch (err) {
+          console.error(`❌ Failed to send to ${to}:`, err.message);
+          resolve({ to, success: false, error: err.message });
+        }
+      }, index * 1000); // 1 second gap
     });
-    res.json({ success: true });
-  } catch (err) {
-    console.error(`❌ Failed to send to ${to}:`, err.message);
-    res.status(500).json({ success: false, message: err.message });
   }
+
+  const results = await Promise.all(recipients.map((to, i) => sendWithDelay(to, i)));
+
+  res.json({ success: true, results });
 });
 
 app.listen(PORT, () => console.log(`🚀 Fast Mailer running on port ${PORT}`));
