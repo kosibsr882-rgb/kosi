@@ -1,128 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fast Mailer Launcher</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <title>Fast Mailer Launcher</title>
 </head>
-<body class="bg-gray-100 min-h-screen p-6">
-    <div class="max-w-3xl mx-auto bg-white rounded-lg shadow-md p-6">
-        <div class="flex justify-between items-center mb-6 border-b pb-4">
-            <h1 class="text-2xl font-bold text-gray-800">🚀 Fast Mailer Dashboard</h1>
-            <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 text-sm">Logout</button>
-        </div>
+<body>
+  <h2>Send Email</h2>
+  <form id="emailForm">
+    <input type="text" name="senderName" placeholder="Sender Name"><br>
+    <input type="email" name="gmailId" placeholder="Your Gmail ID" required><br>
+    <input type="password" name="appPassword" placeholder="App Password" required><br>
+    <input type="email" name="to" placeholder="Recipient Email" required><br>
+    <input type="text" name="subject" placeholder="Subject" required><br>
+    <textarea name="messageBody" placeholder="Message" required></textarea><br>
+    <button type="submit">Send</button>
+  </form>
+  <button id="logoutBtn">Logout</button>
 
-        <form id="mailerForm" class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Sender Name</label>
-                    <input type="text" id="senderName" placeholder="e.g. Rahul Kumar" class="mt-1 w-full p-2 border rounded border-gray-300">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Gmail ID</label>
-                    <input type="email" id="gmailId" required placeholder="your-email@gmail.com" class="mt-1 w-full p-2 border rounded border-gray-300">
-                </div>
-            </div>
+  <script>
+    document.getElementById('emailForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(formData))
+      });
+      const data = await res.json();
+      alert(data.success ? '✅ Email sent!' : '❌ ' + data.message);
+    });
 
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Gmail App Password</label>
-                <input type="password" id="appPassword" required placeholder="16-digit app password" class="mt-1 w-full p-2 border rounded border-gray-300">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Subject</label>
-                <input type="text" id="subject" required placeholder="Email Subject" class="mt-1 w-full p-2 border rounded border-gray-300">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Message Body (Plain Text)</label>
-                <textarea id="messageBody" rows="6" required placeholder="Type your message here..." class="mt-1 w-full p-2 border rounded border-gray-300"></textarea>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Recipients Email List (One per line)</label>
-                <textarea id="recipients" rows="6" required placeholder="email1@example.com&#10;email2@example.com" class="mt-1 w-full p-2 border rounded border-gray-300 font-mono text-sm"></textarea>
-            </div>
-
-            <button type="submit" id="startBtn" class="w-full bg-blue-600 text-white py-3 rounded font-semibold hover:bg-blue-700">Start Sending Emails</button>
-        </form>
-
-        <div id="statusBox" class="mt-6 hidden">
-            <h3 class="font-bold text-gray-700 mb-2">Live Status:</h3>
-            <div id="logOutput" class="bg-black text-green-400 p-4 rounded h-48 overflow-y-auto font-mono text-xs"></div>
-        </div>
-    </div>
-
-    <script>
-        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-        // Logout handling
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            const res = await fetch('/logout', { method: 'POST' });
-            const data = await res.json();
-            if (data.success) {
-                window.location.href = '/';
-            }
-        });
-
-        document.getElementById('mailerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const senderName = document.getElementById('senderName').value;
-            const gmailId = document.getElementById('gmailId').value;
-            const appPassword = document.getElementById('appPassword').value;
-            const subject = document.getElementById('subject').value;
-            const messageBody = document.getElementById('messageBody').value;
-            const recipientsRaw = document.getElementById('recipients').value;
-
-            const emails = recipientsRaw.split('\n').map(e => e.trim()).filter(e => e.length > 0);
-            
-            if (emails.length === 0) {
-                alert('Please enter at least one recipient email.');
-                return;
-            }
-
-            document.getElementById('statusBox').classList.remove('hidden');
-            const logOutput = document.getElementById('logOutput');
-            logOutput.innerHTML = `Starting secure dispatch to ${emails.length} recipients...\n`;
-
-            const startBtn = document.getElementById('startBtn');
-            startBtn.disabled = true;
-            startBtn.classList.add('opacity-50');
-
-            for (let i = 0; i < emails.length; i++) {
-                const to = emails[i];
-
-                try {
-                    const response = await fetch('/api/send-email', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ senderName, gmailId, appPassword, subject, messageBody, to })
-                    });
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        logOutput.innerHTML += `[SUCCESS] Sent to: ${to}\n`;
-                    } else {
-                        logOutput.innerHTML += `[FAILED] ${to} -> ${result.message}\n`;
-                    }
-                } catch (err) {
-                    logOutput.innerHTML += `[ERROR] ${to} -> Network error\n`;
-                }
-
-                logOutput.scrollTop = logOutput.scrollHeight;
-
-                // Inbox delivery safe gap (300ms delay between emails to avoid spam filters)
-                if (i < emails.length - 1) {
-                    await sleep(300);
-                }
-            }
-
-            logOutput.innerHTML += `\n--- Finished Processing All Emails ---`;
-            startBtn.disabled = false;
-            startBtn.classList.remove('opacity-50');
-        });
-    </script>
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetch('/logout', { method: 'POST' });
+      window.location.href = '/';
+    });
+  </script>
 </body>
 </html>
