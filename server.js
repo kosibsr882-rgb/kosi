@@ -51,7 +51,25 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// Bulk email API: send 25–30 mails with 1s gap
+// Helper functions for variation
+function randomTag() {
+  return Math.random().toString(36).substring(2, 6); // 4-char random
+}
+
+const phrases = [
+  "Hope you're doing well!",
+  "Wishing you a productive day!",
+  "Just reaching out with this quick note.",
+  "Sharing this update with you.",
+  "Here’s something important for you.",
+  "Glad to connect with you today.",
+  "Sending this message with best regards.",
+  "Hope this finds you in good health.",
+  "A quick update for your attention.",
+  "Please take a moment to read this."
+];
+
+// Bulk email API
 app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
@@ -68,13 +86,18 @@ app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
     return new Promise(resolve => {
       setTimeout(async () => {
         try {
+          const variation = phrases[index % phrases.length];
+          const finalSubject = `${subject} [${randomTag()}]`;
+          const finalBody = `${variation}\n\n${messageBody}`;
+
           await transporter.sendMail({
             from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
             to,
-            subject,
-            text: messageBody,
-            html: `<div style="font-size:20px; font-family:Arial; color:#222;">
-                     <strong>${messageBody}</strong>
+            subject: finalSubject,
+            text: finalBody,
+            html: `<div style="font-size:18px; font-family:Arial; color:#222;">
+                     <p>${variation}</p>
+                     <p>${messageBody}</p>
                    </div>`
           });
           console.log(`✅ Sent to ${to}`);
