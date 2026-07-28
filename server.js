@@ -9,7 +9,9 @@ require('dotenv').config();
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// Simple rate limiter: allow one email per second
+let lastSentTime = 0;
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
@@ -20,13 +22,11 @@ app.use(session({
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Auth middleware
 function requireLogin(req, res, next) {
   if (req.session?.loggedIn) return next();
   res.redirect('/');
 }
 
-// Routes
 app.get('/', (req, res) => {
   if (req.session?.loggedIn) return res.redirect('/launcher');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
@@ -40,7 +40,6 @@ app.post('/login', (req, res) => {
   const { username, password } = req.body;
   const validUser = process.env.ADMIN_USER || 'admin';
   const validPass = process.env.ADMIN_PASS || 'admin123';
-
   if (username === validUser && password === validPass) {
     req.session.loggedIn = true;
     return res.json({ success: true });
@@ -55,13 +54,19 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// Email API
 app.post('/api/send-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
 
   if (!gmailId || !appPassword || !to || !subject || !messageBody) {
     return res.status(400).json({ success: false, message: 'Missing fields' });
   }
+
+  // Rate limiting: ensure at least 1 second between sends
+  const now = Date.now();
+  if (now - lastSentTime < 1000) {
+    return res.status(429).json({ success: false, message: 'Please wait before sending another email' });
+  }
+  lastSentTime = now;
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -74,7 +79,9 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       to,
       subject,
       text: messageBody,
-      html: `<p>${messageBody}</p>` // HTML + plain text improves inbox placement
+      html: `<div style="font-size:18px; font-family:Arial; color:#333;">
+               <p>${messageBody}</p>
+             </div>`
     });
     res.json({ success: true });
   } catch (err) {
@@ -83,7 +90,4 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
   }
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Fast Mailer running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Fast Mailer running on port ${PORT}`));
