@@ -1,7 +1,7 @@
 {
   "name": "fast-mailer",
   "version": "1.0.0",
-  "description": "Send 20 emails sequentially to 20 recipients",
+  "description": "Simple Gmail-based mailer with login and launcher",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
