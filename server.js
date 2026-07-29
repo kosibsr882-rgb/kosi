@@ -56,20 +56,6 @@ function randomTag() {
   return Math.random().toString(36).substring(2, 6); // 4-char random
 }
 
-const phrases = [
-  "Hope you're doing well!",
-  "Wishing you a productive day!",
-  "Just reaching out with this quick note.",
-  "Sharing this update with you.",
-  "Here’s something important for you.",
-  "Glad to connect with you today.",
-  "Sending this message with best regards.",
-  "Hope this finds you in good health.",
-  "A quick update for your attention.",
-  "Please take a moment to read this."
-];
-
-// Bulk email API
 app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
