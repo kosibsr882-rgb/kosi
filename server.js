@@ -1,4 +1,3 @@
-// server.js
 const express    = require('express');
 const session    = require('express-session');
 const bodyParser = require('body-parser');
@@ -9,7 +8,6 @@ require('dotenv').config();
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// Simple rate limiter: allow one email per second
 let lastSentTime = 0;
 
 app.use(bodyParser.json());
@@ -61,10 +59,9 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
     return res.status(400).json({ success: false, message: 'Missing fields' });
   }
 
-  // Rate limiting: ensure at least 1 second between sends
   const now = Date.now();
   if (now - lastSentTime < 1000) {
-    return res.status(429).json({ success: false, message: 'Please wait before sending another email' });
+    return res.status(429).json({ success: false, message: 'Wait 1 second before sending again' });
   }
   lastSentTime = now;
 
@@ -79,9 +76,13 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       to,
       subject,
       text: messageBody,
-      html: `<div style="font-size:18px; font-family:Arial; color:#333;">
-               <p>${messageBody}</p>
-             </div>`
+      html: `<div style="font-size:20px; font-family:Arial; color:#222;">
+               <strong>${messageBody}</strong>
+             </div>`,
+      headers: {
+        'X-Mailer': 'FastMailer',
+        'List-Unsubscribe': '<mailto:unsubscribe@yourdomain.com>'
+      }
     });
     res.json({ success: true });
   } catch (err) {
