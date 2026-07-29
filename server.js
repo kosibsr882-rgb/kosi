@@ -1,3 +1,4 @@
+// server.js
 const express    = require('express');
 const session    = require('express-session');
 const bodyParser = require('body-parser');
@@ -50,24 +51,8 @@ app.post('/logout', (req, res) => {
   });
 });
 
-function randomTag() {
-  return Math.random().toString(36).substring(2, 6);
-}
-
-const phrases = [
-  "Hope you're doing well!",
-  "Wishing you a productive day!",
-  "Just reaching out with this quick note.",
-  "Sharing this update with you.",
-  "Here’s something important for you.",
-  "Glad to connect with you today.",
-  "Sending this message with best regards.",
-  "Hope this finds you in good health.",
-  "A quick update for your attention.",
-  "Please take a moment to read this."
-];
-
-app.post('/api/send-25-emails', requireLogin, async (req, res) => {
+// API: send 20 mails to 20 recipients
+app.post('/api/send-20-emails', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
   if (!gmailId || !appPassword || !recipients || !subject || !messageBody) {
@@ -83,19 +68,12 @@ app.post('/api/send-25-emails', requireLogin, async (req, res) => {
     return new Promise(resolve => {
       setTimeout(async () => {
         try {
-          const variation = phrases[index % phrases.length];
-          const finalSubject = `${subject} [${randomTag()}]`;
-          const finalBody = `${variation}\n\n${messageBody}`;
-
           await transporter.sendMail({
             from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
             to,
-            subject: finalSubject,
-            text: finalBody,
-            html: `<div style="font-size:18px; font-family:Arial; color:#222;">
-                     <p>${variation}</p>
-                     <p>${messageBody}</p>
-                   </div>`
+            subject,
+            text: messageBody,
+            html: `<p style="font-size:16px; font-family:Arial; color:#222;">${messageBody}</p>`
           });
           console.log(`✅ Mail ${index+1} sent to ${to}`);
           resolve({ to, success: true });
@@ -103,7 +81,7 @@ app.post('/api/send-25-emails', requireLogin, async (req, res) => {
           console.error(`❌ Mail ${index+1} failed to ${to}:`, err.message);
           resolve({ to, success: false, error: err.message });
         }
-      }, index * 1000); 
+      }, index * 1000); // 1 second gap
     });
   }
 
