@@ -1,4 +1,3 @@
-// server.js
 const express    = require('express');
 const session    = require('express-session');
 const bodyParser = require('body-parser');
@@ -51,7 +50,6 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// Helper functions for variation
 function randomTag() {
   return Math.random().toString(36).substring(2, 6);
 }
@@ -69,8 +67,7 @@ const phrases = [
   "Please take a moment to read this."
 ];
 
-// API: send 20 mails to 20 recipients
-app.post('/api/send-20-emails', requireLogin, async (req, res) => {
+app.post('/api/send-25-emails', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
   if (!gmailId || !appPassword || !recipients || !subject || !messageBody) {
@@ -106,7 +103,7 @@ app.post('/api/send-20-emails', requireLogin, async (req, res) => {
           console.error(`❌ Mail ${index+1} failed to ${to}:`, err.message);
           resolve({ to, success: false, error: err.message });
         }
-      }, index * 1000); // 1 second gap
+      }, index * 1000); 
     });
   }
 
