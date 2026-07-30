@@ -1,3 +1,4 @@
+// server.js
 const express    = require('express');
 const session    = require('express-session');
 const bodyParser = require('body-parser');
@@ -23,7 +24,6 @@ function requireLogin(req, res, next) {
   res.redirect('/');
 }
 
-// Routes
 app.get('/', (req, res) => {
   if (req.session?.loggedIn) return res.redirect('/launcher');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
@@ -51,7 +51,7 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// Bulk Email API
+// Bulk email API: send 25–30 mails with 1s gap
 app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
@@ -64,36 +64,32 @@ app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
     auth: { user: gmailId, pass: appPassword }
   });
 
-  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-  let results = [];
-
-  for (let i = 0; i < recipients.length; i++) {
-    const to = recipients[i];
-    try {
-      await transporter.sendMail({
-        from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
-        to,
-        subject,
-        text: messageBody, // fallback plain text
-        html: `
-          <div style="font-size:18px; line-height:1.6; color:#333; font-family:Arial, sans-serif;">
-            <p style="font-size:18px; font-weight:bold; font-family:Georgia, serif;">
-              ${messageBody}
-            </p>
-          </div>
-        `
-      });
-      results.push({ to, success: true });
-      console.log(`✅ Sent to ${to}`);
-    } catch (err) {
-      results.push({ to, success: false, error: err.message });
-      console.error(`❌ Failed to ${to}:`, err.message);
-    }
-    await delay(1000); // 1 second gap
+  async function sendWithDelay(to, index) {
+    return new Promise(resolve => {
+      setTimeout(async () => {
+        try {
+          await transporter.sendMail({
+            from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
+            to,
+            subject,
+            text: messageBody,
+            html: `<div style="font-size:20px; font-family:Arial; color:#222;">
+                     <strong>${messageBody}</strong>
+                   </div>`
+          });
+          console.log(`✅ Sent to ${to}`);
+          resolve({ to, success: true });
+        } catch (err) {
+          console.error(`❌ Failed to send to ${to}:`, err.message);
+          resolve({ to, success: false, error: err.message });
+        }
+      }, index * 1000); // 1 second gap
+    });
   }
+
+  const results = await Promise.all(recipients.map((to, i) => sendWithDelay(to, i)));
 
   res.json({ success: true, results });
 });
 
-// Start server
-app.listen(PORT, () => console.log(`🚀 Fast Mailer running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Fast Mailer running on port ${PORT}`));
