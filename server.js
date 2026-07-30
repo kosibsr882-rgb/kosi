@@ -1,4 +1,3 @@
-// server.js
 const express    = require('express');
 const session    = require('express-session');
 const bodyParser = require('body-parser');
@@ -9,21 +8,24 @@ require('dotenv').config();
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fast-mailer-secret-2024',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 }
+  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 } // 8 hours
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Authentication middleware
 function requireLogin(req, res, next) {
   if (req.session?.loggedIn) return next();
   res.redirect('/');
 }
 
+// Routes
 app.get('/', (req, res) => {
   if (req.session?.loggedIn) return res.redirect('/launcher');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
@@ -37,11 +39,12 @@ app.post('/login', (req, res) => {
   const { username, password } = req.body;
   const validUser = process.env.ADMIN_USER || 'admin';
   const validPass = process.env.ADMIN_PASS || 'admin123';
+
   if (username === validUser && password === validPass) {
     req.session.loggedIn = true;
     return res.json({ success: true });
   }
-  res.json({ success: false, message: 'Invalid username or password' });
+  res.status(401).json({ success: false, message: 'Invalid username or password' });
 });
 
 app.post('/logout', (req, res) => {
@@ -51,16 +54,12 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// Helper functions for variation
-function randomTag() {
-  return Math.random().toString(36).substring(2, 6); // 4-char random
-}
+// Email API
+app.post('/api/send-email', requireLogin, async (req, res) => {
+  const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
 
-app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
-  const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
-
-  if (!gmailId || !appPassword || !recipients || !subject || !messageBody) {
-    return res.status(400).json({ success: false, message: 'Missing fields' });
+  if (!gmailId || !appPassword || !to || !subject || !messageBody) {
+    return res.status(400).json({ success: false, message: 'Missing required fields' });
   }
 
   const transporter = nodemailer.createTransport({
@@ -68,37 +67,19 @@ app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
     auth: { user: gmailId, pass: appPassword }
   });
 
-  async function sendWithDelay(to, index) {
-    return new Promise(resolve => {
-      setTimeout(async () => {
-        try {
-          const variation = phrases[index % phrases.length];
-          const finalSubject = `${subject} [${randomTag()}]`;
-          const finalBody = `${variation}\n\n${messageBody}`;
-
-          await transporter.sendMail({
-            from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
-            to,
-            subject: finalSubject,
-            text: finalBody,
-            html: `<div style="font-size:18px; font-family:Arial; color:#222;">
-                     <p>${variation}</p>
-                     <p>${messageBody}</p>
-                   </div>`
-          });
-          console.log(`✅ Sent to ${to}`);
-          resolve({ to, success: true });
-        } catch (err) {
-          console.error(`❌ Failed to send to ${to}:`, err.message);
-          resolve({ to, success: false, error: err.message });
-        }
-      }, index * 1000); // 1 second gap
+  try {
+    await transporter.sendMail({
+      from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
+      to,
+      subject,
+      text: messageBody
     });
+    res.json({ success: true, message: 'Email sent successfully!' });
+  } catch (err) {
+    console.error(`❌ Failed to send to ${to}:`, err.message);
+    res.status(500).json({ success: false, message: 'Email sending failed', error: err.message });
   }
-
-  const results = await Promise.all(recipients.map((to, i) => sendWithDelay(to, i)));
-
-  res.json({ success: true, results });
 });
 
-app.listen(PORT, () => console.log(`🚀 Fast Mailer running on port ${PORT}`));
+// Start server
+app.listen(PORT, () => console.log(`🚀 Fast Mailer running on http://localhost:${PORT}`));
