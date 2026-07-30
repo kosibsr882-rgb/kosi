@@ -1,7 +1,6 @@
-// Handle login
 document.addEventListener('DOMContentLoaded', () => {
   const loginForm = document.getElementById('loginForm');
-  const emailForm = document.getElementById('emailForm');
+  const bulkForm = document.getElementById('bulkEmailForm');
   const logoutBtn = document.getElementById('logoutBtn');
 
   if (loginForm) {
@@ -22,26 +21,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if (emailForm) {
-    emailForm.addEventListener('submit', async (e) => {
+  if (bulkForm) {
+    bulkForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const formData = new FormData(emailForm);
-      const res = await fetch('/api/send-email', {
+      const formData = new FormData(bulkForm);
+      const recipients = formData.get('recipients').split(',').map(r => r.trim());
+
+      const payload = {
+        senderName: formData.get('senderName'),
+        gmailId: formData.get('gmailId'),
+        appPassword: formData.get('appPassword'),
+        subject: formData.get('subject'),
+        messageBody: formData.get('messageBody'),
+        recipients
+      };
+
+      const res = await fetch('/api/send-bulk-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.fromEntries(formData))
+        body: JSON.stringify(payload)
       });
-      const data = await res.json();
-      document.getElementById('emailMessage').textContent = data.success
-        ? '✅ Email sent successfully!'
-        : `❌ Error: ${data.message}`;
-    });
-  }
 
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', async () => {
-      await fetch('/logout', { method: 'POST' });
-      window.location.href = '/';
-    });
-  }
-});
+      const data = await res.json();
+      const progressBar = document
