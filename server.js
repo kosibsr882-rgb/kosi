@@ -1,90 +1,87 @@
-const express    = require('express');
-const session    = require('express-session');
-const bodyParser = require('body-parser');
-const nodemailer = require('nodemailer');
-const path       = require('path');
-require('dotenv').config();
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fast Mailer - Bulk Launcher</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial, sans-serif; background:#f4f4f4; }
+    .container { width:500px; margin:50px auto; background:#fff; padding:20px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+    h2 { text-align:center; font-size:28px; font-weight:bold; }
+    input, textarea, button { width:100%; padding:12px; margin:10px 0; border:1px solid #ccc; border-radius:5px; font-size:16px; }
+    button { background:#007bff; color:#fff; font-size:18px; font-weight:bold; cursor:pointer; }
+    button:hover { background:#0056b3; }
+    #progressBar { width:100%; background:#ddd; border-radius:5px; margin-top:15px; }
+    #progressBar div { height:20px; width:0%; background:#28a745; border-radius:5px; text-align:center; color:#fff; font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Send Bulk Email</h2>
+    <form id="bulkEmailForm">
+      <input type="text" name="senderName" placeholder="Sender Name">
+      <input type="email" name="gmailId" placeholder="Your Gmail ID" required>
+      <input type="password" name="appPassword" placeholder="App Password" required>
+      <input type="text" name="subject" placeholder="Subject" required>
+      <textarea name="messageBody" placeholder="Message" rows="5" required></textarea>
+      <textarea name="recipients" placeholder="Enter recipient emails separated by commas" rows="5" required></textarea>
+      <button type="submit">Send Bulk Email</button>
+    </form>
+    <button id="logoutBtn">Logout</button>
+    <div id="progressBar"><div></div></div>
+    <p id="bulkMessage"></p>
+    <ul id="statusList"></ul>
+  </div>
 
-const app  = express();
-const PORT = process.env.PORT || 3000;
+  <script>
+    const bulkForm = document.getElementById('bulkEmailForm');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const progressBar = document.querySelector('#progressBar div');
+    const statusList = document.getElementById('statusList');
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'fast-mailer-secret-2024',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 }
-}));
-app.use(express.static(path.join(__dirname, 'public')));
+    bulkForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      statusList.innerHTML = '';
+      progressBar.style.width = '0%';
+      progressBar.textContent = '';
 
-function requireLogin(req, res, next) {
-  if (req.session?.loggedIn) return next();
-  res.redirect('/');
-}
+      const formData = new FormData(bulkForm);
+      const recipients = formData.get('recipients').split(',').map(r => r.trim());
 
-app.get('/', (req, res) => {
-  if (req.session?.loggedIn) return res.redirect('/launcher');
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
+      const payload = {
+        senderName: formData.get('senderName'),
+        gmailId: formData.get('gmailId'),
+        appPassword: formData.get('appPassword'),
+        subject: formData.get('subject'),
+        messageBody: formData.get('messageBody'),
+        recipients
+      };
 
-app.get('/launcher', requireLogin, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'launcher.html'));
-});
-
-app.post('/login', (req, res) => {
-  const { username, password } = req.body;
-  const validUser = process.env.ADMIN_USER || 'admin';
-  const validPass = process.env.ADMIN_PASS || 'admin123';
-  if (username === validUser && password === validPass) {
-    req.session.loggedIn = true;
-    return res.json({ success: true });
-  }
-  res.json({ success: false, message: 'Invalid username or password' });
-});
-
-app.post('/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.clearCookie('connect.sid');
-    return res.json({ success: true });
-  });
-});
-
-// Bulk Email API
-app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
-  const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
-
-  if (!gmailId || !appPassword || !recipients || !subject || !messageBody) {
-    return res.status(400).json({ success: false, message: 'Missing fields' });
-  }
-
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: gmailId, pass: appPassword }
-  });
-
-  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-  let results = [];
-
-  for (let i = 0; i < recipients.length; i++) {
-    const to = recipients[i];
-    try {
-      await transporter.sendMail({
-        from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
-        to,
-        subject,
-        html: `<div style="font-size:20px; font-weight:bold;">${messageBody}</div>`
+      const res = await fetch('/api/send-bulk-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
-      results.push({ to, success: true });
-      console.log(`✅ Sent to ${to}`);
-    } catch (err) {
-      results.push({ to, success: false, error: err.message });
-      console.error(`❌ Failed to ${to}:`, err.message);
-    }
-    await delay(1000); // 1 second gap
-  }
 
-  res.json({ success: true, results });
-});
+      const data = await res.json();
+      if (data.success) {
+        data.results.forEach((r, i) => {
+          const li = document.createElement('li');
+          li.textContent = r.success ? `✅ Sent to ${r.to}` : `❌ Failed to ${r.to}: ${r.error}`;
+          statusList.appendChild(li);
+          const percent = Math.round(((i+1)/data.results.length)*100);
+          progressBar.style.width = percent + '%';
+          progressBar.textContent = percent + '%';
+        });
+        document.getElementById('bulkMessage').textContent = 'Bulk emails processed!';
+      } else {
+        document.getElementById('bulkMessage').textContent = 'Error sending bulk emails';
+      }
+    });
 
-app.listen(PORT, () => console.log(`🚀 Fast Mailer running on http://localhost:${PORT}`));
+    logoutBtn.addEventListener('click', async () => {
+      await fetch('/logout', { method: 'POST' });
+      window.location.href = '/';
+    });
+  </script>
+</body>
+</html>
