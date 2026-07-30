@@ -1,23 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Fast Mailer - Launcher</title>
+  <title>Fast Mailer - Bulk Launcher</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
-    <h2><b>Send Email</b></h2>
-    <form id="emailForm">
+    <h2><b>Send Bulk Email</b></h2>
+    <form id="bulkEmailForm">
       <input type="text" name="senderName" placeholder="Sender Name">
       <input type="email" name="gmailId" placeholder="Your Gmail ID" required>
       <input type="password" name="appPassword" placeholder="App Password" required>
-      <input type="email" name="to" placeholder="Recipient Email" required>
       <input type="text" name="subject" placeholder="Subject" required>
       <textarea name="messageBody" placeholder="Message" rows="5" required></textarea>
-      <button type="submit"><b>Send Email</b></button>
+      <textarea name="recipients" placeholder="Enter recipient emails separated by commas" rows="5" required></textarea>
+      <button type="submit"><b>Send Bulk Email</b></button>
     </form>
     <button id="logoutBtn"><b>Logout</b></button>
-    <p id="emailMessage"></p>
+    <div id="progressBar"><div></div></div>
+    <p id="bulkMessage"></p>
+    <ul id="statusList"></ul>
   </div>
   <script src="app.js"></script>
 </body>
