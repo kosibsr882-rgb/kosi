@@ -1,30 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Login - Fast Mailer</title>
+  <title>Fast Mailer - Login</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h2>Login</h2>
-  <form id="loginForm">
-    <input type="text" name="username" placeholder="Username" required><br>
-    <input type="password" name="password" placeholder="Password" required><br>
-    <button type="submit">Login</button>
-  </form>
-
-  <script>
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
-      const res = await fetch('/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.fromEntries(formData))
-      });
-      const data = await res.json();
-      if (data.success) window.location.href = '/launcher';
-      else alert(data.message);
-    });
-  </script>
+  <div class="container">
+    <h2>Login</h2>
+    <form id="loginForm">
+      <input type="text" name="username" placeholder="Username" required>
+      <input type="password" name="password" placeholder="Password" required>
+      <button type="submit">Login</button>
+    </form>
+    <p id="loginMessage"></p>
+  </div>
+  <script src="app.js"></script>
 </body>
 </html>
