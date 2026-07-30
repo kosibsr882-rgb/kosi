@@ -8,24 +8,21 @@ require('dotenv').config();
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fast-mailer-secret-2024',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 } // 8 hours
+  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 }
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Authentication middleware
 function requireLogin(req, res, next) {
   if (req.session?.loggedIn) return next();
   res.redirect('/');
 }
 
-// Routes
 app.get('/', (req, res) => {
   if (req.session?.loggedIn) return res.redirect('/launcher');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
@@ -39,12 +36,11 @@ app.post('/login', (req, res) => {
   const { username, password } = req.body;
   const validUser = process.env.ADMIN_USER || 'admin';
   const validPass = process.env.ADMIN_PASS || 'admin123';
-
   if (username === validUser && password === validPass) {
     req.session.loggedIn = true;
     return res.json({ success: true });
   }
-  res.status(401).json({ success: false, message: 'Invalid username or password' });
+  res.json({ success: false, message: 'Invalid username or password' });
 });
 
 app.post('/logout', (req, res) => {
@@ -54,12 +50,12 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// Email API
-app.post('/api/send-email', requireLogin, async (req, res) => {
-  const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
+// Bulk Email API
+app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
+  const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
-  if (!gmailId || !appPassword || !to || !subject || !messageBody) {
-    return res.status(400).json({ success: false, message: 'Missing required fields' });
+  if (!gmailId || !appPassword || !recipients || !subject || !messageBody) {
+    return res.status(400).json({ success: false, message: 'Missing fields' });
   }
 
   const transporter = nodemailer.createTransport({
@@ -67,19 +63,28 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
     auth: { user: gmailId, pass: appPassword }
   });
 
-  try {
-    await transporter.sendMail({
-      from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
-      to,
-      subject,
-      text: messageBody
-    });
-    res.json({ success: true, message: 'Email sent successfully!' });
-  } catch (err) {
-    console.error(`❌ Failed to send to ${to}:`, err.message);
-    res.status(500).json({ success: false, message: 'Email sending failed', error: err.message });
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  let results = [];
+
+  for (let i = 0; i < recipients.length; i++) {
+    const to = recipients[i];
+    try {
+      await transporter.sendMail({
+        from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
+        to,
+        subject,
+        html: `<div style="font-size:20px; font-weight:bold;">${messageBody}</div>`
+      });
+      results.push({ to, success: true });
+      console.log(`✅ Sent to ${to}`);
+    } catch (err) {
+      results.push({ to, success: false, error: err.message });
+      console.error(`❌ Failed to ${to}:`, err.message);
+    }
+    await delay(1000); // 1 second gap
   }
+
+  res.json({ success: true, results });
 });
 
-// Start server
 app.listen(PORT, () => console.log(`🚀 Fast Mailer running on http://localhost:${PORT}`));
