@@ -76,12 +76,9 @@ app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
         subject,
         text: messageBody, // fallback plain text
         html: `
-          <div style="font-size:16px; line-height:1.6; color:#333; font-family:Arial, sans-serif;">
-            <p style="font-family:Georgia, serif; font-size:18px; font-weight:bold; margin-bottom:10px;">
+          <div style="font-size:18px; line-height:1.6; color:#333; font-family:Arial, sans-serif;">
+            <p style="font-size:18px; font-weight:bold; font-family:Georgia, serif;">
               ${messageBody}
-            </p>
-            <p style="font-family:Verdana, sans-serif; font-size:14px; color:#555;">
-              Regards,<br>${senderName || gmailId}
             </p>
           </div>
         `
