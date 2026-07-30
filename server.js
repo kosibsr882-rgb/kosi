@@ -23,6 +23,7 @@ function requireLogin(req, res, next) {
   res.redirect('/');
 }
 
+// Routes
 app.get('/', (req, res) => {
   if (req.session?.loggedIn) return res.redirect('/launcher');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
@@ -33,7 +34,6 @@ app.get('/launcher', requireLogin, (req, res) => {
 });
 
 app.post('/login', (req, res) => {
-  console.log('Login attempt:', req.body); // Debugging
   const { username, password } = req.body;
   const validUser = process.env.ADMIN_USER || 'admin';
   const validPass = process.env.ADMIN_PASS || 'admin123';
@@ -74,7 +74,17 @@ app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
         from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
         to,
         subject,
-        html: `<div style="font-size:20px; font-weight:bold;">${messageBody}</div>`
+        text: messageBody, // fallback plain text
+        html: `
+          <div style="font-size:16px; line-height:1.6; color:#333; font-family:Arial, sans-serif;">
+            <p style="font-family:Georgia, serif; font-size:18px; font-weight:bold; margin-bottom:10px;">
+              ${messageBody}
+            </p>
+            <p style="font-family:Verdana, sans-serif; font-size:14px; color:#555;">
+              Regards,<br>${senderName || gmailId}
+            </p>
+          </div>
+        `
       });
       results.push({ to, success: true });
       console.log(`✅ Sent to ${to}`);
