@@ -1,87 +1,49 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Fast Mailer - Bulk Launcher</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    body { font-family: Arial, sans-serif; background:#f4f4f4; }
-    .container { width:500px; margin:50px auto; background:#fff; padding:20px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
-    h2 { text-align:center; font-size:28px; font-weight:bold; }
-    input, textarea, button { width:100%; padding:12px; margin:10px 0; border:1px solid #ccc; border-radius:5px; font-size:16px; }
-    button { background:#007bff; color:#fff; font-size:18px; font-weight:bold; cursor:pointer; }
-    button:hover { background:#0056b3; }
-    #progressBar { width:100%; background:#ddd; border-radius:5px; margin-top:15px; }
-    #progressBar div { height:20px; width:0%; background:#28a745; border-radius:5px; text-align:center; color:#fff; font-size:12px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h2>Send Bulk Email</h2>
-    <form id="bulkEmailForm">
-      <input type="text" name="senderName" placeholder="Sender Name">
-      <input type="email" name="gmailId" placeholder="Your Gmail ID" required>
-      <input type="password" name="appPassword" placeholder="App Password" required>
-      <input type="text" name="subject" placeholder="Subject" required>
-      <textarea name="messageBody" placeholder="Message" rows="5" required></textarea>
-      <textarea name="recipients" placeholder="Enter recipient emails separated by commas" rows="5" required></textarea>
-      <button type="submit">Send Bulk Email</button>
-    </form>
-    <button id="logoutBtn">Logout</button>
-    <div id="progressBar"><div></div></div>
-    <p id="bulkMessage"></p>
-    <ul id="statusList"></ul>
-  </div>
+const express    = require('express');
+const session    = require('express-session');
+const bodyParser = require('body-parser');
+const nodemailer = require('nodemailer');
+const path       = require('path');
+require('dotenv').config();
 
-  <script>
-    const bulkForm = document.getElementById('bulkEmailForm');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const progressBar = document.querySelector('#progressBar div');
-    const statusList = document.getElementById('statusList');
+const app  = express();
+const PORT = process.env.PORT || 3000;
 
-    bulkForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      statusList.innerHTML = '';
-      progressBar.style.width = '0%';
-      progressBar.textContent = '';
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fast-mailer-secret-2024',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 }
+}));
+app.use(express.static(path.join(__dirname, 'public')));
 
-      const formData = new FormData(bulkForm);
-      const recipients = formData.get('recipients').split(',').map(r => r.trim());
+function requireLogin(req, res, next) {
+  if (req.session?.loggedIn) return next();
+  res.redirect('/');
+}
 
-      const payload = {
-        senderName: formData.get('senderName'),
-        gmailId: formData.get('gmailId'),
-        appPassword: formData.get('appPassword'),
-        subject: formData.get('subject'),
-        messageBody: formData.get('messageBody'),
-        recipients
-      };
+app.get('/', (req, res) => {
+  if (req.session?.loggedIn) return res.redirect('/launcher');
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
 
-      const res = await fetch('/api/send-bulk-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+app.get('/launcher', requireLogin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'launcher.html'));
+});
 
-      const data = await res.json();
-      if (data.success) {
-        data.results.forEach((r, i) => {
-          const li = document.createElement('li');
-          li.textContent = r.success ? `✅ Sent to ${r.to}` : `❌ Failed to ${r.to}: ${r.error}`;
-          statusList.appendChild(li);
-          const percent = Math.round(((i+1)/data.results.length)*100);
-          progressBar.style.width = percent + '%';
-          progressBar.textContent = percent + '%';
-        });
-        document.getElementById('bulkMessage').textContent = 'Bulk emails processed!';
-      } else {
-        document.getElementById('bulkMessage').textContent = 'Error sending bulk emails';
-      }
-    });
+app.post('/login', (req, res) => {
+  console.log('Login attempt:', req.body); // Debugging
+  const { username, password } = req.body;
+  const validUser = process.env.ADMIN_USER || 'admin';
+  const validPass = process.env.ADMIN_PASS || 'admin123';
+  if (username === validUser && password === validPass) {
+    req.session.loggedIn = true;
+    return res.json({ success: true });
+  }
+  res.json({ success: false, message: 'Invalid username or password' });
+});
 
-    logoutBtn.addEventListener('click', async () => {
-      await fetch('/logout', { method: 'POST' });
-      window.location.href = '/';
-    });
-  </script>
-</body>
-</html>
+app.post('/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.clearCookie('connect.sid');
