@@ -47,3 +47,46 @@ app.post('/login', (req, res) => {
 app.post('/logout', (req, res) => {
   req.session.destroy(() => {
     res.clearCookie('connect.sid');
+    return res.json({ success: true });
+  });
+});
+
+// Bulk Email API
+app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
+  const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
+
+  if (!gmailId || !appPassword || !recipients || !subject || !messageBody) {
+    return res.status(400).json({ success: false, message: 'Missing fields' });
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: gmailId, pass: appPassword }
+  });
+
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  let results = [];
+
+  for (let i = 0; i < recipients.length; i++) {
+    const to = recipients[i];
+    try {
+      await transporter.sendMail({
+        from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
+        to,
+        subject,
+        html: `<div style="font-size:20px; font-weight:bold;">${messageBody}</div>`
+      });
+      results.push({ to, success: true });
+      console.log(`✅ Sent to ${to}`);
+    } catch (err) {
+      results.push({ to, success: false, error: err.message });
+      console.error(`❌ Failed to ${to}:`, err.message);
+    }
+    await delay(1000); // 1 second gap
+  }
+
+  res.json({ success: true, results });
+});
+
+// Start server
+app.listen(PORT, () => console.log(`🚀 Fast Mailer running on http://localhost:${PORT}`));
