@@ -1,7 +1,7 @@
 {
   "name": "fast-mailer",
   "version": "1.0.0",
-  "description": "Send 20 emails sequentially to 20 recipients with inline letter-style image body",
+  "description": "Send 20 emails sequentially to 20 recipients with letter-style image body",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
