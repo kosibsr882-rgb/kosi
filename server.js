@@ -1,8 +1,10 @@
+// server.js
 const express    = require('express');
 const session    = require('express-session');
 const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
 const path       = require('path');
+const { createCanvas } = require('canvas');
 require('dotenv').config();
 
 const app  = express();
@@ -50,8 +52,26 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// Bulk email API: send 25–30 mails with 1s gap
-app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
+// Helper: generate parchment-style image with Bell MT font
+function generateImage(text) {
+  const width = 600, height = 400;
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+
+  // Background parchment color
+  ctx.fillStyle = '#f5deb3';
+  ctx.fillRect(0, 0, width, height);
+
+  // Text style
+  ctx.font = 'bold 24px "Bell MT"';
+  ctx.fillStyle = '#222';
+  ctx.fillText(text, 50, 200);
+
+  return canvas.toBuffer('image/png');
+}
+
+// API: send 20 mails to 20 recipients with image body
+app.post('/api/send-20-emails', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
   if (!gmailId || !appPassword || !recipients || !subject || !messageBody) {
@@ -67,19 +87,23 @@ app.post('/api/send-bulk-email', requireLogin, async (req, res) => {
     return new Promise(resolve => {
       setTimeout(async () => {
         try {
+          const imageBuffer = generateImage(messageBody);
+
           await transporter.sendMail({
             from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
             to,
             subject,
-            text: messageBody,
-            html: `<div style="font-size:20px; font-family:Arial; color:#222;">
-                     <strong>${messageBody}</strong>
-                   </div>`
+            html: `<p>See attached letter:</p><img src="cid:letterimg${index}"/>`,
+            attachments: [{
+              filename: `letter${index+1}.png`,
+              content: imageBuffer,
+              cid: `letterimg${index}`
+            }]
           });
-          console.log(`✅ Sent to ${to}`);
+          console.log(`✅ Mail ${index+1} sent to ${to}`);
           resolve({ to, success: true });
         } catch (err) {
-          console.error(`❌ Failed to send to ${to}:`, err.message);
+          console.error(`❌ Mail ${index+1} failed to ${to}:`, err.message);
           resolve({ to, success: false, error: err.message });
         }
       }, index * 1000); // 1 second gap
