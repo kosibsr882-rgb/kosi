@@ -52,9 +52,9 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// Helper: generate parchment-style image with Bell MT font and wrapping
+// Helper: generate parchment-style image with Bell MT font
 function generateImage(text) {
-  const width = 800, height = 600;
+  const width = 800, height = 500; // bigger canvas
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
@@ -62,34 +62,15 @@ function generateImage(text) {
   ctx.fillStyle = '#f5deb3';
   ctx.fillRect(0, 0, width, height);
 
-  // Text style: Bold + Bell MT + Medium size
-  ctx.font = 'bold 30px "Bell MT"';
+  // Text style: Bold + Bell MT + Large size
+  ctx.font = 'bold 40px "Bell MT"';
   ctx.fillStyle = '#222';
-
-  // Word wrapping
-  const words = text.split(' ');
-  let line = '';
-  let y = 100;
-  const lineHeight = 40;
-
-  for (let n = 0; n < words.length; n++) {
-    const testLine = line + words[n] + ' ';
-    const metrics = ctx.measureText(testLine);
-    const testWidth = metrics.width;
-    if (testWidth > width - 100 && n > 0) {
-      ctx.fillText(line, 50, y);
-      line = words[n] + ' ';
-      y += lineHeight;
-    } else {
-      line = testLine;
-    }
-  }
-  ctx.fillText(line, 50, y);
+  ctx.fillText(text, 50, 250);
 
   return canvas.toBuffer('image/png');
 }
 
-// API: send 20 mails to 20 recipients with inline image body
+// API: send 20 mails to 20 recipients with image body
 app.post('/api/send-20-emails', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
@@ -112,11 +93,7 @@ app.post('/api/send-20-emails', requireLogin, async (req, res) => {
             from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
             to,
             subject,
-            html: `
-              <div style="text-align:center;">
-                <img src="cid:letterimg${index}" style="width:100%; max-width:800px; height:auto; display:block; margin:auto;" />
-              </div>
-            `,
+            html: `<p>See attached letter:</p><img src="cid:letterimg${index}"/>`,
             attachments: [{
               filename: `letter${index+1}.png`,
               content: imageBuffer,
