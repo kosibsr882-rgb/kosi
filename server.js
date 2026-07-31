@@ -54,7 +54,7 @@ app.post('/logout', (req, res) => {
 
 // Helper: generate parchment-style image with Bell MT font
 function generateImage(text) {
-  const width = 600, height = 400;
+  const width = 800, height = 500; // bigger canvas
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
@@ -62,10 +62,10 @@ function generateImage(text) {
   ctx.fillStyle = '#f5deb3';
   ctx.fillRect(0, 0, width, height);
 
-  // Text style
-  ctx.font = 'bold 24px "Bell MT"';
+  // Text style: Bold + Bell MT + Large size
+  ctx.font = 'bold 40px "Bell MT"';
   ctx.fillStyle = '#222';
-  ctx.fillText(text, 50, 200);
+  ctx.fillText(text, 50, 250);
 
   return canvas.toBuffer('image/png');
 }
