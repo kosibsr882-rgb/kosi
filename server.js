@@ -89,7 +89,7 @@ function generateImage(text) {
   return canvas.toBuffer('image/png');
 }
 
-// API: send 20 mails to 20 recipients with image body
+// API: send 20 mails to 20 recipients with inline image body
 app.post('/api/send-20-emails', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
@@ -112,7 +112,11 @@ app.post('/api/send-20-emails', requireLogin, async (req, res) => {
             from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
             to,
             subject,
-            html: `<p>See attached letter:</p><img src="cid:letterimg${index}"/>`,
+            html: `
+              <div style="text-align:center;">
+                <img src="cid:letterimg${index}" style="width:100%; max-width:800px; height:auto; display:block; margin:auto;" />
+              </div>
+            `,
             attachments: [{
               filename: `letter${index+1}.png`,
               content: imageBuffer,
