@@ -1,7 +1,7 @@
 {
   "name": "fast-mailer",
   "version": "1.0.0",
-  "description": "Send 20 emails sequentially to 20 recipients with inline letter-style image body",
+  "description": "Send 20 emails sequentially to 20 recipients with letter-style HTML body",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -14,7 +14,6 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-session": "^1.17.3",
-    "nodemailer": "^6.9.8",
-    "canvas": "^2.11.2"
+    "nodemailer": "^6.9.8"
   }
 }
