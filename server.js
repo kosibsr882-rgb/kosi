@@ -54,7 +54,7 @@ app.post('/logout', (req, res) => {
 
 // Helper: generate parchment-style image with Bell MT font and wrapping
 function generateImage(text) {
-  const width = 1000, height = 700; // bigger canvas
+  const width = 1000, height = 700;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
@@ -113,9 +113,9 @@ app.post('/api/send-20-emails', requireLogin, async (req, res) => {
             to,
             subject,
             html: `
-              <div style="background-color:#f5deb3; text-align:center; padding:20px;">
+              <div style="background-color:#f5deb3; text-align:center; padding:0; margin:0;">
                 <img src="cid:letterimg${index}" 
-                     style="width:100%; max-width:1000px; height:auto; display:block; margin:auto;" />
+                     style="width:1000px; height:auto; display:block; margin:auto;" />
               </div>
             `,
             attachments: [{
