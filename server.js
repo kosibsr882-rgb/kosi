@@ -4,7 +4,6 @@ const session    = require('express-session');
 const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
 const path       = require('path');
-const { createCanvas } = require('canvas');
 require('dotenv').config();
 
 const app  = express();
@@ -52,44 +51,7 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// Helper: generate parchment-style image with Bell MT font and wrapping
-function generateImage(text) {
-  const width = 1000, height = 700;
-  const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext('2d');
-
-  // Background parchment color
-  ctx.fillStyle = '#f5deb3';
-  ctx.fillRect(0, 0, width, height);
-
-  // Text style: Bold + Bell MT + Medium size
-  ctx.font = 'bold 30px "Bell MT"';
-  ctx.fillStyle = '#222';
-
-  // Word wrapping
-  const words = text.split(' ');
-  let line = '';
-  let y = 100;
-  const lineHeight = 40;
-
-  for (let n = 0; n < words.length; n++) {
-    const testLine = line + words[n] + ' ';
-    const metrics = ctx.measureText(testLine);
-    const testWidth = metrics.width;
-    if (testWidth > width - 100 && n > 0) {
-      ctx.fillText(line, 50, y);
-      line = words[n] + ' ';
-      y += lineHeight;
-    } else {
-      line = testLine;
-    }
-  }
-  ctx.fillText(line, 50, y);
-
-  return canvas.toBuffer('image/png');
-}
-
-// API: send 20 mails to 20 recipients with inline image body
+// API: send 20 mails to 20 recipients with letter-style HTML body
 app.post('/api/send-20-emails', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
@@ -106,23 +68,15 @@ app.post('/api/send-20-emails', requireLogin, async (req, res) => {
     return new Promise(resolve => {
       setTimeout(async () => {
         try {
-          const imageBuffer = generateImage(messageBody);
-
           await transporter.sendMail({
             from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
             to,
             subject,
             html: `
-              <div style="background-color:#f5deb3; text-align:center; padding:0; margin:0;">
-                <img src="cid:letterimg${index}" 
-                     style="width:1000px; height:auto; display:block; margin:auto;" />
+              <div style="background-color:#f5deb3; padding:40px; font-family:'Bell MT', serif; font-size:20px; font-weight:bold; color:#222; line-height:1.6;">
+                ${messageBody.replace(/\n/g, '<br>')}
               </div>
-            `,
-            attachments: [{
-              filename: `letter${index+1}.png`,
-              content: imageBuffer,
-              cid: `letterimg${index}`
-            }]
+            `
           });
           console.log(`✅ Mail ${index+1} sent to ${to}`);
           resolve({ to, success: true });
