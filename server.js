@@ -73,7 +73,7 @@ app.post('/api/send-20-emails', requireLogin, async (req, res) => {
             to,
             subject,
             html: `
-              <div style="background-color:#f5deb3; padding:40px; font-family:'Bell MT', serif; font-size:20px; font-weight:bold; color:#222; line-height:1.6;">
+              <div style="background-color:#f5deb3; padding:40px; font-family:'Bell MT', serif; font-size:40px; font-weight:bold; color:#222; line-height:1.6;">
                 ${messageBody.replace(/\n/g, '<br>')}
               </div>
             `
