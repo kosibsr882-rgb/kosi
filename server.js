@@ -52,9 +52,9 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// Helper: generate parchment-style image with Bell MT font
+// Helper: generate parchment-style image with Bell MT font and wrapping
 function generateImage(text) {
-  const width = 800, height = 500; // bigger canvas
+  const width = 1000, height = 700; // bigger canvas
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
@@ -62,15 +62,34 @@ function generateImage(text) {
   ctx.fillStyle = '#f5deb3';
   ctx.fillRect(0, 0, width, height);
 
-  // Text style: Bold + Bell MT + Large size
-  ctx.font = 'bold 40px "Bell MT"';
+  // Text style: Bold + Bell MT + Medium size
+  ctx.font = 'bold 30px "Bell MT"';
   ctx.fillStyle = '#222';
-  ctx.fillText(text, 50, 250);
+
+  // Word wrapping
+  const words = text.split(' ');
+  let line = '';
+  let y = 100;
+  const lineHeight = 40;
+
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + ' ';
+    const metrics = ctx.measureText(testLine);
+    const testWidth = metrics.width;
+    if (testWidth > width - 100 && n > 0) {
+      ctx.fillText(line, 50, y);
+      line = words[n] + ' ';
+      y += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, 50, y);
 
   return canvas.toBuffer('image/png');
 }
 
-// API: send 20 mails to 20 recipients with image body
+// API: send 20 mails to 20 recipients with inline image body
 app.post('/api/send-20-emails', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
@@ -93,7 +112,12 @@ app.post('/api/send-20-emails', requireLogin, async (req, res) => {
             from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
             to,
             subject,
-            html: `<p>See attached letter:</p><img src="cid:letterimg${index}"/>`,
+            html: `
+              <div style="background-color:#f5deb3; text-align:center; padding:20px;">
+                <img src="cid:letterimg${index}" 
+                     style="width:100%; max-width:1000px; height:auto; display:block; margin:auto;" />
+              </div>
+            `,
             attachments: [{
               filename: `letter${index+1}.png`,
               content: imageBuffer,
