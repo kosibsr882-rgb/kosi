@@ -47,28 +47,39 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-app.post('/api/send-email', requireLogin, async (req, res) => {
-  const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
-  if (!gmailId || !appPassword || !to)
+// ✅ Bulk 25 recipients route
+app.post('/api/send-25', requireLogin, async (req, res) => {
+  const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
+
+  if (!gmailId || !appPassword || !recipients?.length)
     return res.status(400).json({ success: false, message: 'Missing fields' });
+
+  if (recipients.length > 25)
+    return res.status(400).json({ success: false, message: 'Max 25 recipients allowed per request' });
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user: gmailId, pass: appPassword }
   });
 
-  try {
-    await transporter.sendMail({
-      from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
-      to,
-      subject,
-      text: messageBody
-    });
-    res.json({ success: true });
-  } catch (err) {
-    console.error(`❌ ${to}:`, err.message);
-    res.status(500).json({ success: false, message: err.message });
+  let results = [];
+  for (let to of recipients) {
+    try {
+      await transporter.sendMail({
+        from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
+        to,
+        subject,
+        text: messageBody
+      });
+      results.push({ to, success: true });
+    } catch (err) {
+      console.error(`❌ ${to}:`, err.message);
+      results.push({ to, success: false, error: err.message });
+    }
+    await new Promise(r => setTimeout(r, 1000)); // 1 sec gap
   }
+
+  res.json({ success: true, results });
 });
 
 app.listen(PORT, () => console.log(`🚀 Fast Mailer on port ${PORT}`));
