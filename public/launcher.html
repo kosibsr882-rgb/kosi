@@ -1,51 +1,29 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Fast Mailer Launcher</title>
-  <meta charset="UTF-8">
-  <style>
-    body { font-family: Arial; background:#eef; padding:20px; }
-    input, textarea { display:block; margin:10px 0; padding:10px; width:100%; }
-    button { padding:10px; background:#28a745; color:#fff; border:none; border-radius:4px; cursor:pointer; }
-    #logoutBtn { background:#dc3545; margin-top:20px; }
-  </style>
-</head>
-<body>
-  <h2>Send Email to 25 Recipients</h2>
-  <input type="text" id="senderName" placeholder="Sender Name (optional)">
-  <input type="text" id="gmailId" placeholder="Your Gmail ID">
-  <input type="password" id="appPassword" placeholder="App Password">
-  <textarea id="recipients" placeholder="Enter up to 25 emails, comma separated"></textarea>
-  <input type="text" id="subject" placeholder="Subject">
-  <textarea id="messageBody" placeholder="Message Body"></textarea>
-  <button onclick="send25()">Send to 25</button>
-  <button id="logoutBtn">Logout</button>
-  <p id="msg"></p>
+<h2>Send HTML Email</h2>
+<input type="text" id="senderName" placeholder="Sender Name (optional)">
+<input type="text" id="gmailId" placeholder="Your Gmail ID">
+<input type="password" id="appPassword" placeholder="App Password">
+<input type="text" id="to" placeholder="Recipient Email">
+<input type="text" id="subject" placeholder="Subject">
+<textarea id="htmlBody" placeholder="Write HTML here"></textarea>
+<button onclick="sendHtml()">Send HTML Email</button>
+<p id="msg"></p>
 
-  <script>
-    async function send25() {
-      const recipients = document.getElementById('recipients').value.split(',').map(r => r.trim());
-      const payload = {
-        senderName: document.getElementById('senderName').value,
-        gmailId: document.getElementById('gmailId').value,
-        appPassword: document.getElementById('appPassword').value,
-        subject: document.getElementById('subject').value,
-        messageBody: document.getElementById('messageBody').value,
-        recipients
-      };
-      const res = await fetch('/api/send-25', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(payload)
-      });
-      const data = await res.json();
-      document.getElementById('msg').innerText = data.success ? '✅ Sent to all!' : '❌ ' + data.message;
-    }
-
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await fetch('/logout', { method: 'POST' });
-      window.location.href = '/';
+<script>
+  async function sendHtml() {
+    const payload = {
+      senderName: document.getElementById('senderName').value,
+      gmailId: document.getElementById('gmailId').value,
+      appPassword: document.getElementById('appPassword').value,
+      to: document.getElementById('to').value,
+      subject: document.getElementById('subject').value,
+      htmlBody: document.getElementById('htmlBody').value
+    };
+    const res = await fetch('/api/send-html', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
     });
-  </script>
-</body>
-</html>
+    const data = await res.json();
+    document.getElementById('msg').innerText = data.success ? '✅ HTML Email sent!' : '❌ ' + data.message;
+  }
+</script>
