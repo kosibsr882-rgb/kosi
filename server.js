@@ -69,7 +69,7 @@ app.post('/api/send-25', requireLogin, async (req, res) => {
         from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
         to,
         subject,
-        text: messageBody
+        text: `Hi ${to},\n\n${messageBody}\n\nRegards,\n${senderName || gmailId}`
       });
       results.push({ to, success: true });
     } catch (err) {
