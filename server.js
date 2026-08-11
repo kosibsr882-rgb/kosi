@@ -63,8 +63,6 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       to,
       subject,
       text: messageBody
-      // HTML nahi — plain text = personal email = Primary inbox
-      // Koi bulk/newsletter headers nahi
     });
     res.json({ success: true });
   } catch (err) {
