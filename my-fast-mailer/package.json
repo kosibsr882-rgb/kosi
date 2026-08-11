@@ -1,0 +1,12 @@
+{
+  "name": "fast-mailer-vercel",
+  "version": "1.0.0",
+  "description": "Send emails with letter-style HTML body on Vercel",
+  "main": "api/send.js",
+  "scripts": {
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.8"
+  }
+}
