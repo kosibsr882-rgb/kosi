@@ -1,7 +1,7 @@
 {
   "name": "fast-mailer",
   "version": "1.0.0",
-  "description": "Simple Gmail App Password based mailer with Erima font HTML support",
+  "description": "Simple Gmail App Password based mailer with simple fonts",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
