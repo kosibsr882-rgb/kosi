@@ -7,14 +7,12 @@
 </head>
 <body>
   <div class="box">
-    <h2>Send HTML Email</h2>
+    <h2>Send Email to 25 Recipients</h2>
     <input type="text" id="senderName" placeholder="Sender Name (optional)">
-    <input type="text" id="gmailId" placeholder="Your Gmail ID">
-    <input type="password" id="appPassword" placeholder="App Password">
-    <input type="text" id="to" placeholder="Recipient Email">
     <input type="text" id="subject" placeholder="Subject">
-    <textarea id="htmlBody" placeholder="Write your message here (HTML supported)"></textarea>
-    <button onclick="sendHtml()">Send HTML Email</button>
+    <textarea id="messageBody" placeholder="Message Body"></textarea>
+    <textarea id="recipients" placeholder="Enter up to 25 emails, comma separated"></textarea>
+    <button onclick="send25()">Send to 25</button>
     <button onclick="logout()">Logout</button>
     <p id="msg"></p>
   </div>
