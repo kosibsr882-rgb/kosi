@@ -63,12 +63,12 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       to,
       subject,
       html: `
-        <div style="font-family: 'Bell MT', serif; font-size: 18px; font-weight: bold;">
+        <div style="font-family: Arial, Helvetica, sans-serif; font-size: 18px; font-weight: bold;">
           ${messageBody}
         </div>
       `
       // HTML body with bold + large font
-      // Clean letter-style formatting, no newsletter headers
+      // Clean letter-style formatting
     });
     res.json({ success: true });
   } catch (err) {
