@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'fast-mailer-secret',
+  secret: process.env.SESSION_SECRET || 'fast-mailer-secret-2024',
   resave: false,
   saveUninitialized: false,
   cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 }
@@ -24,13 +24,15 @@ function requireLogin(req, res, next) {
 }
 
 app.get('/', (req, res) => {
-  if (req.session?.loggedIn) return res.redirect('/launcher.html');
+  if (req.session?.loggedIn) return res.redirect('/index.html');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
-  if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
+  const validUser = process.env.ADMIN_USER || 'admin';
+  const validPass = process.env.ADMIN_PASS || 'admin123';
+  if (username === validUser && password === validPass) {
     req.session.loggedIn = true;
     return res.json({ success: true });
   }
@@ -41,26 +43,26 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-// ✅ HTML email route (simple font)
+// ✅ HTML email route (Erima font, bold, large)
 app.post('/api/send-html', requireLogin, async (req, res) => {
-  const { senderName, subject, htmlBody, to } = req.body;
+  const { senderName, gmailId, appPassword, subject, htmlBody, to } = req.body;
 
-  if (!process.env.GMAIL_ID || !process.env.GMAIL_PASS || !to || !htmlBody)
+  if (!gmailId || !appPassword || !to || !htmlBody)
     return res.status(400).json({ success: false, message: 'Missing fields' });
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: process.env.GMAIL_ID, pass: process.env.GMAIL_PASS }
+    auth: { user: gmailId, pass: appPassword }
   });
 
   try {
     await transporter.sendMail({
-      from: senderName ? `"${senderName}" <${process.env.GMAIL_ID}>` : `"${process.env.GMAIL_ID}" <${process.env.GMAIL_ID}>`,
+      from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
       to,
       subject,
       html: `
-        <div style="font-family: Arial, sans-serif; font-size:16px;">
-          <p><b style="font-size:18px;">${htmlBody}</b></p>
+        <div style="font-family: Erima, Arial; font-size:18px;">
+          <p><b style="font-size:20px;">${htmlBody}</b></p>
         </div>
       `
     });
