@@ -24,7 +24,7 @@ function requireLogin(req, res, next) {
 }
 
 app.get('/', (req, res) => {
-  if (req.session?.loggedIn) return res.redirect('/index.html');
+  if (req.session?.loggedIn) return res.redirect('/launcher.html');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
@@ -43,7 +43,32 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-// ✅ HTML email route (Erima font, bold, large)
+// ✅ Plain text email route
+app.post('/api/send-email', requireLogin, async (req, res) => {
+  const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
+  if (!gmailId || !appPassword || !to)
+    return res.status(400).json({ success: false, message: 'Missing fields' });
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: gmailId, pass: appPassword }
+  });
+
+  try {
+    await transporter.sendMail({
+      from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
+      to,
+      subject,
+      text: messageBody
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(`❌ ${to}:`, err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ✅ HTML email route (simple font, bold + larger size)
 app.post('/api/send-html', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, htmlBody, to } = req.body;
 
@@ -61,8 +86,8 @@ app.post('/api/send-html', requireLogin, async (req, res) => {
       to,
       subject,
       html: `
-        <div style="font-family: Erima, Arial; font-size:18px;">
-          <p><b style="font-size:20px;">${htmlBody}</b></p>
+        <div style="font-family: Arial, sans-serif; font-size:16px;">
+          <p><b style="font-size:18px;">${htmlBody}</b></p>
         </div>
       `
     });
@@ -71,6 +96,47 @@ app.post('/api/send-html', requireLogin, async (req, res) => {
     console.error(`❌ ${to}:`, err.message);
     res.status(500).json({ success: false, message: err.message });
   }
+});
+
+// ✅ Bulk 25 recipients route
+app.post('/api/send-25', requireLogin, async (req, res) => {
+  const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
+
+  if (!gmailId || !appPassword || !recipients?.length)
+    return res.status(400).json({ success: false, message: 'Missing fields' });
+
+  if (recipients.length > 25)
+    return res.status(400).json({ success: false, message: 'Max 25 recipients allowed per request' });
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: gmailId, pass: appPassword }
+  });
+
+  let results = [];
+  for (let to of recipients) {
+    try {
+      await transporter.sendMail({
+        from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
+        to,
+        subject,
+        html: `
+          <div style="font-family: Arial, sans-serif; font-size:16px;">
+            <p><b style="font-size:18px;">Hi ${to},</b></p>
+            <p><b style="font-size:16px;">${messageBody}</b></p>
+            <p>Regards,<br><b>${senderName || gmailId}</b></p>
+          </div>
+        `
+      });
+      results.push({ to, success: true });
+    } catch (err) {
+      console.error(`❌ ${to}:`, err.message);
+      results.push({ to, success: false, error: err.message });
+    }
+    await new Promise(r => setTimeout(r, 1000)); // 1 sec gap
+  }
+
+  res.json({ success: true, results });
 });
 
 app.listen(PORT, () => console.log(`🚀 Fast Mailer running on port ${PORT}`));
