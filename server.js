@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'fast-mailer-secret-2024',
+  secret: process.env.SESSION_SECRET || 'fast-mailer-secret',
   resave: false,
   saveUninitialized: false,
   cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 }
@@ -24,15 +24,13 @@ function requireLogin(req, res, next) {
 }
 
 app.get('/', (req, res) => {
-  if (req.session?.loggedIn) return res.redirect('/index.html');
+  if (req.session?.loggedIn) return res.redirect('/launcher.html');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
-  const validUser = process.env.ADMIN_USER || 'admin';
-  const validPass = process.env.ADMIN_PASS || 'admin123';
-  if (username === validUser && password === validPass) {
+  if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
     req.session.loggedIn = true;
     return res.json({ success: true });
   }
@@ -43,34 +41,45 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-// ✅ HTML email route (Erima font, bold, large)
-app.post('/api/send-html', requireLogin, async (req, res) => {
-  const { senderName, gmailId, appPassword, subject, htmlBody, to } = req.body;
+// ✅ Bulk 25 recipients route with Gmail ID + App Password
+app.post('/api/send-25', requireLogin, async (req, res) => {
+  const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
-  if (!gmailId || !appPassword || !to || !htmlBody)
+  if (!gmailId || !appPassword || !recipients?.length)
     return res.status(400).json({ success: false, message: 'Missing fields' });
+
+  if (recipients.length > 25)
+    return res.status(400).json({ success: false, message: 'Max 25 recipients allowed per request' });
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user: gmailId, pass: appPassword }
   });
 
-  try {
-    await transporter.sendMail({
-      from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
-      to,
-      subject,
-      html: `
-        <div style="font-family: Erima, Arial; font-size:18px;">
-          <p><b style="font-size:20px;">${htmlBody}</b></p>
-        </div>
-      `
-    });
-    res.json({ success: true });
-  } catch (err) {
-    console.error(`❌ ${to}:`, err.message);
-    res.status(500).json({ success: false, message: err.message });
+  let results = [];
+  for (let to of recipients) {
+    try {
+      await transporter.sendMail({
+        from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
+        to,
+        subject,
+        html: `
+          <div style="font-family: Arial, sans-serif; font-size:16px;">
+            <p><b style="font-size:18px;">Hi ${to},</b></p>
+            <p><b style="font-size:16px;">${messageBody}</b></p>
+            <p>Regards,<br><b>${senderName || gmailId}</b></p>
+          </div>
+        `
+      });
+      results.push({ to, success: true });
+    } catch (err) {
+      console.error(`❌ ${to}:`, err.message);
+      results.push({ to, success: false, error: err.message });
+    }
+    await new Promise(r => setTimeout(r, 1000)); // 1 sec gap
   }
+
+  res.json({ success: true, results });
 });
 
 app.listen(PORT, () => console.log(`🚀 Fast Mailer running on port ${PORT}`));
