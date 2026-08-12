@@ -62,9 +62,13 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
       to,
       subject,
-      text: messageBody
-      // HTML nahi — plain text = personal email = Primary inbox
-      // Koi bulk/newsletter headers nahi
+      html: `
+        <div style="font-family: 'Bell MT', serif; font-size: 18px; font-weight: bold;">
+          ${messageBody}
+        </div>
+      `
+      // HTML body with bold + large font
+      // Clean letter-style formatting, no newsletter headers
     });
     res.json({ success: true });
   } catch (err) {
