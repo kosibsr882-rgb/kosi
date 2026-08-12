@@ -41,7 +41,7 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-// ✅ Bulk 25 recipients route with Gmail ID + App Password
+// ✅ Bulk 25 recipients route
 app.post('/api/send-25', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
