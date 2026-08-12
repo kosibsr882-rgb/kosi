@@ -62,9 +62,13 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
       to,
       subject,
-      text: messageBody
-      // HTML nahi — plain text = personal email = Primary inbox
-      // Koi bulk/newsletter headers nahi
+      html: `
+        <div style="font-family: Arial, Helvetica, sans-serif; font-size: 18px; font-weight: bold; line-height: 1.5;">
+          ${messageBody}
+        </div>
+      `
+      // HTML body with bold + large font
+      // Clean letter-style formatting, no bulk headers
     });
     res.json({ success: true });
   } catch (err) {
@@ -73,4 +77,4 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`🚀 Fast Mailer on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Fast Mailer running on port ${PORT}`));
