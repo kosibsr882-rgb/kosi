@@ -41,11 +41,11 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-// ✅ Bulk 25 recipients route
+// ✅ Bulk 25 recipients route with Gmail ID + App Password
 app.post('/api/send-25', requireLogin, async (req, res) => {
-  const { senderName, subject, messageBody, recipients } = req.body;
+  const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
 
-  if (!process.env.GMAIL_ID || !process.env.GMAIL_PASS || !recipients?.length)
+  if (!gmailId || !appPassword || !recipients?.length)
     return res.status(400).json({ success: false, message: 'Missing fields' });
 
   if (recipients.length > 25)
@@ -53,21 +53,21 @@ app.post('/api/send-25', requireLogin, async (req, res) => {
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: process.env.GMAIL_ID, pass: process.env.GMAIL_PASS }
+    auth: { user: gmailId, pass: appPassword }
   });
 
   let results = [];
   for (let to of recipients) {
     try {
       await transporter.sendMail({
-        from: senderName ? `"${senderName}" <${process.env.GMAIL_ID}>` : `"${process.env.GMAIL_ID}" <${process.env.GMAIL_ID}>`,
+        from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
         to,
         subject,
         html: `
           <div style="font-family: Arial, sans-serif; font-size:16px;">
             <p><b style="font-size:18px;">Hi ${to},</b></p>
             <p><b style="font-size:16px;">${messageBody}</b></p>
-            <p>Regards,<br><b>${senderName || process.env.GMAIL_ID}</b></p>
+            <p>Regards,<br><b>${senderName || gmailId}</b></p>
           </div>
         `
       });
