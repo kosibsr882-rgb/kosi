@@ -59,22 +59,4 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
 
   try {
     await transporter.sendMail({
-      from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
-      to,
-      subject,
-      html: `
-        <div style="font-family: Arial, Helvetica, sans-serif; font-size: 18px; font-weight: bold; line-height: 1.5;">
-          ${messageBody}
-        </div>
-      `
-      // HTML body with bold + large font
-      // Clean letter-style formatting, no bulk headers
-    });
-    res.json({ success: true });
-  } catch (err) {
-    console.error(`❌ ${to}:`, err.message);
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-app.listen(PORT, () => console.log(`🚀 Fast Mailer running on port ${PORT}`));
+      from: senderName ? `"${senderName
