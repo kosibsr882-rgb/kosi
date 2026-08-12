@@ -41,45 +41,34 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-// ✅ Bulk 25 recipients route with Gmail ID + App Password
-app.post('/api/send-25', requireLogin, async (req, res) => {
-  const { senderName, gmailId, appPassword, subject, messageBody, recipients } = req.body;
+// ✅ HTML email route (simple font)
+app.post('/api/send-html', requireLogin, async (req, res) => {
+  const { senderName, subject, htmlBody, to } = req.body;
 
-  if (!gmailId || !appPassword || !recipients?.length)
+  if (!process.env.GMAIL_ID || !process.env.GMAIL_PASS || !to || !htmlBody)
     return res.status(400).json({ success: false, message: 'Missing fields' });
-
-  if (recipients.length > 25)
-    return res.status(400).json({ success: false, message: 'Max 25 recipients allowed per request' });
 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: gmailId, pass: appPassword }
+    auth: { user: process.env.GMAIL_ID, pass: process.env.GMAIL_PASS }
   });
 
-  let results = [];
-  for (let to of recipients) {
-    try {
-      await transporter.sendMail({
-        from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
-        to,
-        subject,
-        html: `
-          <div style="font-family: Arial, sans-serif; font-size:16px;">
-            <p><b style="font-size:18px;">Hi ${to},</b></p>
-            <p><b style="font-size:16px;">${messageBody}</b></p>
-            <p>Regards,<br><b>${senderName || gmailId}</b></p>
-          </div>
-        `
-      });
-      results.push({ to, success: true });
-    } catch (err) {
-      console.error(`❌ ${to}:`, err.message);
-      results.push({ to, success: false, error: err.message });
-    }
-    await new Promise(r => setTimeout(r, 1000)); // 1 sec gap
+  try {
+    await transporter.sendMail({
+      from: senderName ? `"${senderName}" <${process.env.GMAIL_ID}>` : `"${process.env.GMAIL_ID}" <${process.env.GMAIL_ID}>`,
+      to,
+      subject,
+      html: `
+        <div style="font-family: Arial, sans-serif; font-size:16px;">
+          <p><b style="font-size:18px;">${htmlBody}</b></p>
+        </div>
+      `
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(`❌ ${to}:`, err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
-
-  res.json({ success: true, results });
 });
 
 app.listen(PORT, () => console.log(`🚀 Fast Mailer running on port ${PORT}`));
