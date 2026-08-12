@@ -72,7 +72,7 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
   }
 });
 
-// ✅ HTML email route (bold + large font)
+// ✅ HTML email route (bold + large font + Erima)
 app.post('/api/send-html', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, htmlBody, to } = req.body;
 
@@ -90,7 +90,7 @@ app.post('/api/send-html', requireLogin, async (req, res) => {
       to,
       subject,
       html: `
-        <div style="font-family: Bell MT; font-size:18px;">
+        <div style="font-family: Erima, Arial; font-size:18px;">
           <p><b style="font-size:20px;">${htmlBody}</b></p>
         </div>
       `
@@ -125,7 +125,7 @@ app.post('/api/send-25', requireLogin, async (req, res) => {
         to,
         subject,
         html: `
-          <div style="font-family: Bell MT; font-size:18px;">
+          <div style="font-family: Erima, Arial; font-size:18px;">
             <p><b style="font-size:20px;">Hi ${to},</b></p>
             <p><b style="font-size:18px;">${messageBody}</b></p>
             <p>Regards,<br><b>${senderName || gmailId}</b></p>
