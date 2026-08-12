@@ -18,6 +18,8 @@ async function send25() {
   const recipients = document.getElementById('recipients').value.split(',').map(r => r.trim());
   const payload = {
     senderName: document.getElementById('senderName').value,
+    gmailId: document.getElementById('gmailId').value,
+    appPassword: document.getElementById('appPassword').value,
     subject: document.getElementById('subject').value,
     messageBody: document.getElementById('messageBody').value,
     recipients
