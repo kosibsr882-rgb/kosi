@@ -1,7 +1,7 @@
 {
   "name": "fast-mailer",
   "version": "1.0.0",
-  "description": "Simple Gmail App Password based mailer with simple fonts",
+  "description": "Simple Gmail App Password based mailer with bulk 25 recipients",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
