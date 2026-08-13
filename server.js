@@ -47,7 +47,7 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-// Bulk email sender with 1-second gap
+// Bulk email sender with ~1.1 second gap (10% slower)
 app.post('/api/send-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
   if (!gmailId || !appPassword || !to)
@@ -58,7 +58,6 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
     auth: { user: gmailId, pass: appPassword }
   });
 
-  // Convert "to" into array (comma separated emails)
   const recipients = Array.isArray(to) ? to : to.split(',').map(r => r.trim());
 
   try {
@@ -69,18 +68,18 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
         to: recipient,
         subject,
         html: `
-          <div style="font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 1.5;">
-            ${messageBody}
+          <div style="font-family: 'Bell MT', serif; font-size: 16px; line-height: 1.6;">
+            <b>${messageBody}</b>
           </div>
-          <div style="font-family: Arial, Helvetica, sans-serif; font-size: 11px; margin-top: 20px; color: #555;">
+          <div style="font-family: 'Bell MT', serif; font-size: 12px; margin-top: 20px; color: #444;">
             Thanks & Regards,<br>
-            ${senderName || gmailId}
+            <b>${senderName || gmailId}</b>
           </div>
         `
       });
       console.log(`✅ Sent to ${recipient}`);
-      // 1-second gap
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 1.1-second gap (10% slower than 1s)
+      await new Promise(resolve => setTimeout(resolve, 1100));
     }
     res.json({ success: true, sent: recipients.length });
   } catch (err) {
