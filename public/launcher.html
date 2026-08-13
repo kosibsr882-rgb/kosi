@@ -47,45 +47,4 @@
       const gmailId=document.getElementById('gmailId').value.trim();
       const appPassword=document.getElementById('appPassword').value.trim();
       const subject=document.getElementById('subject').value.trim();
-      const messageBody=document.getElementById('messageBody').value.trim();
-      const recipients=document.getElementById('recipients').value.split(',').map(r=>r.trim()).filter(r=>r);
-
-      if(!gmailId||!appPassword||recipients.length===0){
-        setStatus('error','❌ Missing fields');
-        return;
-      }
-
-      let ok=0,fail=0;
-      for(const email of recipients){
-        try{
-          const res=await fetch('/api/send-email',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({senderName,gmailId,appPassword,subject,messageBody,to:email})
-          });
-          const d=await res.json();
-          if(res.ok&&d.success){ok++;}
-          else{fail++;}
-        }catch{fail++;}
-        await new Promise(r=>setTimeout(r,550)); // 10% slow safe delay
-      }
-
-      if(fail===0) setStatus('success',`✅ All ${ok} emails sent successfully!`);
-      else if(ok===0) setStatus('error',`❌ All ${fail} emails failed`);
-      else setStatus('error',`⚠️ ${ok} sent, ${fail} failed`);
-    }
-
-    function setStatus(type,msg){
-      const st=document.getElementById('status');
-      st.className='status '+type;
-      st.textContent=msg;
-    }
-
-    document.getElementById('sendBtn').addEventListener('click',sendEmails);
-    document.getElementById('logoutBtn').addEventListener('click',async()=>{
-      await fetch('/logout',{method:'POST'});
-      window.location.href='/';
-    });
-  </script>
-</body>
-</html>
+      const messageBody=document.getElementBy
