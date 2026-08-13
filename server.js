@@ -47,28 +47,34 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-// ✅ Optimized email sending
+// ✅ Optimized email sending with Gmail SMTP
 app.post('/api/send-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
   if (!gmailId || !appPassword || !to)
     return res.status(400).json({ success: false, message: 'Missing fields' });
 
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
     auth: { user: gmailId, pass: appPassword }
   });
 
   try {
     await transporter.sendMail({
-      from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
+      from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
       to,
       subject,
-      // ✅ Clean HTML body → inbox safe
       html: `
         <div style="font-family:Arial, sans-serif; font-size:14px; color:#333; line-height:1.6;">
           ${messageBody}
         </div>
-      `
+      `,
+      headers: {
+        "X-Priority": "3",
+        "X-MSMail-Priority": "Normal",
+        "X-Mailer": "FastMailer"
+      }
     });
 
     // ✅ Slow down sending speed ~10% (safe delay)
