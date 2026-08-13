@@ -69,10 +69,10 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
         to: recipient,
         subject,
         html: `
-          <div style="font-family: Arial, Helvetica, sans-serif; font-size: 15px; font-weight: bold; line-height: 1.5;">
+          <div style="font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 1.5;">
             ${messageBody}
           </div>
-          <div style="font-family: Arial, Helvetica, sans-serif; font-size: 10px; font-weight: bold; margin-top: 20px; color: #555;">
+          <div style="font-family: Arial, Helvetica, sans-serif; font-size: 11px; margin-top: 20px; color: #555;">
             Thanks & Regards,<br>
             ${senderName || gmailId}
           </div>
