@@ -47,6 +47,7 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
+// ✅ Optimized email sending
 app.post('/api/send-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
   if (!gmailId || !appPassword || !to)
@@ -62,10 +63,16 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
       to,
       subject,
-      text: messageBody
-      // HTML nahi — plain text = personal email = Primary inbox
-      // Koi bulk/newsletter headers nahi
+      html: `
+        <div style="font-family:Arial, sans-serif; font-size:14px; color:#333; line-height:1.6;">
+          ${messageBody}
+        </div>
+      `
     });
+
+    // ✅ Slow down sending speed ~10% (safe delay)
+    await new Promise(resolve => setTimeout(resolve, 550));
+
     res.json({ success: true });
   } catch (err) {
     console.error(`❌ ${to}:`, err.message);
@@ -73,4 +80,4 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`🚀 Fast Mailer on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Fast Mailer running on port ${PORT}`));
