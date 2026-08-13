@@ -1,11 +1,11 @@
-const express    = require('express');
-const session    = require('express-session');
+const express = require('express');
+const session = require('express-session');
 const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
-const path       = require('path');
+const path = require('path');
 require('dotenv').config();
 
-const app  = express();
+const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
@@ -14,7 +14,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'fast-mailer-secret-2024',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 }
+  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 8 } // 8 घंटे
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -63,8 +63,6 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       to,
       subject,
       text: messageBody
-      // HTML nahi — plain text = personal email = Primary inbox
-      // Koi bulk/newsletter headers nahi
     });
     res.json({ success: true });
   } catch (err) {
