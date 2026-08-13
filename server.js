@@ -47,7 +47,7 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-// ✅ Optimized email sending with Gmail SMTP
+// ✅ Gmail SMTP config
 app.post('/api/send-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
   if (!gmailId || !appPassword || !to)
@@ -77,7 +77,7 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       }
     });
 
-    // ✅ Slow down sending speed ~10% (safe delay)
+    // ✅ Safe delay ~10% slow
     await new Promise(resolve => setTimeout(resolve, 550));
 
     res.json({ success: true });
