@@ -47,6 +47,7 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
+// Bulk email sender with 1-second gap
 app.post('/api/send-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
   if (!gmailId || !appPassword || !to)
@@ -57,26 +58,33 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
     auth: { user: gmailId, pass: appPassword }
   });
 
+  // Convert "to" into array (comma separated emails)
+  const recipients = Array.isArray(to) ? to : to.split(',').map(r => r.trim());
+
   try {
-    await transporter.sendMail({
-      from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
-      to,
-      subject,
-      html: `
-        <div style="font-family: Arial, Helvetica, sans-serif; font-size: 15px; font-weight: bold; line-height: 1.5;">
-          ${messageBody}
-        </div>
-        <div style="font-family: Arial, Helvetica, sans-serif; font-size: 10px; font-weight: bold; margin-top: 20px; color: #555;">
-          Thanks & Regards,<br>
-          ${senderName || gmailId}
-        </div>
-      `
-      // Main body bold + 15px
-      // Footer (Thanks/Regards) bold + 10px
-    });
-    res.json({ success: true });
+    for (let i = 0; i < recipients.length; i++) {
+      const recipient = recipients[i];
+      await transporter.sendMail({
+        from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
+        to: recipient,
+        subject,
+        html: `
+          <div style="font-family: Arial, Helvetica, sans-serif; font-size: 15px; font-weight: bold; line-height: 1.5;">
+            ${messageBody}
+          </div>
+          <div style="font-family: Arial, Helvetica, sans-serif; font-size: 10px; font-weight: bold; margin-top: 20px; color: #555;">
+            Thanks & Regards,<br>
+            ${senderName || gmailId}
+          </div>
+        `
+      });
+      console.log(`✅ Sent to ${recipient}`);
+      // 1-second gap
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    res.json({ success: true, sent: recipients.length });
   } catch (err) {
-    console.error(`❌ ${to}:`, err.message);
+    console.error(`❌ Error:`, err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
