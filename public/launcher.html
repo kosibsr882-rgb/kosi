@@ -1,42 +1,91 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>FastMailer Launcher</title>
+  <meta charset="UTF-8">
+  <title>FastMailer Launcher</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f9f9f9; margin:0; padding:20px; }
+    h1 { color:#333; }
+    .status { margin-top:10px; padding:10px; border-radius:5px; }
+    .status.success { background:#f0fff4; border:1px solid #9ae6b4; color:#276749; }
+    .status.error { background:#fff0f0; border:1px solid #ffcccc; color:#e53e3e; }
+    button { padding:10px 20px; margin-top:15px; cursor:pointer; }
+  </style>
 </head>
 <body>
-<!-- Your form fields here -->
-<script>
-async function sendAll(emails){
-  let ok=0,fail=0;
-  for(let i=0;i<emails.length;i+=6){
-    const chunk=emails.slice(i,i+6);
-    const promises=chunk.map(async email=>{
-      try{
-        const res=await fetch('/api/send-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:email})});
-        const d=await res.json();
-        if(res.ok&&d.success){ok++;addLog('ok','✅',`Delivered → ${email}`)}
-        else{fail++;addLog('fail','❌',`Failed → ${email}`)}
-      }catch{fail++;addLog('fail','❌',`Error → ${email}`)}
+  <h1>🚀 FastMailer Launcher</h1>
+  <p>Welcome! Fill in the details below to send emails.</p>
+
+  <div>
+    <label>Sender Name:</label><br>
+    <input id="senderName" type="text" placeholder="Your name"><br><br>
+
+    <label>Gmail ID:</label><br>
+    <input id="gmailId" type="email" placeholder="example@gmail.com"><br><br>
+
+    <label>App Password:</label><br>
+    <input id="appPassword" type="password" placeholder="16-digit App Password"><br><br>
+
+    <label>Subject:</label><br>
+    <input id="subject" type="text" placeholder="Email subject"><br><br>
+
+    <label>Message:</label><br>
+    <textarea id="messageBody" rows="5" cols="40" placeholder="Write your message here..."></textarea><br><br>
+
+    <label>Recipients (comma separated):</label><br>
+    <textarea id="recipients" rows="3" cols="40" placeholder="user1@gmail.com, user2@gmail.com"></textarea><br><br>
+
+    <button id="sendBtn">🚀 Send Emails</button>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <script>
+    async function sendEmails(){
+      const senderName=document.getElementById('senderName').value.trim();
+      const gmailId=document.getElementById('gmailId').value.trim();
+      const appPassword=document.getElementById('appPassword').value.trim();
+      const subject=document.getElementById('subject').value.trim();
+      const messageBody=document.getElementById('messageBody').value.trim();
+      const recipients=document.getElementById('recipients').value.split(',').map(r=>r.trim()).filter(r=>r);
+
+      if(!gmailId||!appPassword||recipients.length===0){
+        setStatus('error','❌ Missing fields');
+        return;
+      }
+
+      let ok=0,fail=0;
+      for(const email of recipients){
+        try{
+          const res=await fetch('/api/send-email',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({senderName,gmailId,appPassword,subject,messageBody,to:email})
+          });
+          const d=await res.json();
+          if(res.ok&&d.success){ok++;}
+          else{fail++;}
+        }catch{fail++;}
+        await new Promise(r=>setTimeout(r,550)); // 10% slow safe delay
+      }
+
+      if(fail===0) setStatus('success',`✅ All ${ok} emails sent successfully!`);
+      else if(ok===0) setStatus('error',`❌ All ${fail} emails failed`);
+      else setStatus('error',`⚠️ ${ok} sent, ${fail} failed`);
+    }
+
+    function setStatus(type,msg){
+      const st=document.getElementById('status');
+      st.className='status '+type;
+      st.textContent=msg;
+    }
+
+    document.getElementById('sendBtn').addEventListener('click',sendEmails);
+    document.getElementById('logoutBtn').addEventListener('click',async()=>{
+      await fetch('/logout',{method:'POST'});
+      window.location.href='/';
     });
-    await Promise.all(promises);
-    setProgress(Math.min(i + chunk.length, emails.length), emails.length);
-    if(i + 6 < emails.length) await sleep(500); // safe delay
-  }
-  if(fail===0){setStatus('success','🎉',`All ${ok} emails sent successfully!`)}
-  else if(ok===0){setStatus('error','💥',`All ${fail} emails failed. Check credentials.`)}
-  else{setStatus('sending','⚠️',`${ok} sent, ${fail} failed`)}
-  addLog('info','📊',`Total: ${emails.length}  ·  ✅ ${ok} success  ·  ❌ ${fail} failed`);
-  btn.disabled=false;btn.innerHTML='🚀 Send All Emails';
-}
-function clearAll(){
-  ['senderName','gmailId','appPassword','subject','messageBody','recipients'].forEach(id=>document.getElementById(id).value='');
-  countRecipients();clearLog();document.getElementById('progressWrap').style.display='none';setStatus('','⚡','Ready to launch');
-}
-document.getElementById('logoutBtn').addEventListener('click',async()=>{
-  if(!confirm('Logout karna chahte hain?'))return;
-  await fetch('/logout',{method:'POST'});window.location.href='/';
-});
-</script>
+  </script>
 </body>
 </html>
