@@ -63,6 +63,7 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
       to,
       subject,
+      // ✅ Clean HTML body → inbox safe
       html: `
         <div style="font-family:Arial, sans-serif; font-size:14px; color:#333; line-height:1.6;">
           ${messageBody}
