@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Fast Mailer</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    .form-box { width: 500px; margin: 50px auto; }
+    input, textarea { width: 100%; padding: 8px; margin: 5px 0; }
+    button { padding: 10px 20px; }
+  </style>
+</head>
+<body>
+  <div class="form-box">
+    <h2>Send Email</h2>
+    <form id="mailForm">
+      <input type="text" name="senderName" placeholder="Sender Name">
+      <input type="email" name="gmailId" placeholder="Your Gmail ID" required>
+      <input type="password" name="appPassword" placeholder="App Password" required>
+      <input type="text" name="subject" placeholder="Subject" required>
+      <textarea name="messageBody" rows="6" placeholder="Message Body" required></textarea>
+      <input type="text" name="to" placeholder="Recipients (comma separated)" required>
+      <button type="submit">Send</button>
+    </form>
+  </div>
+  <script>
+    document.getElementById('mailForm').onsubmit = async e => {
+      e.preventDefault();
+      const res = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderName: e.target.senderName.value,
+          gmailId: e.target.gmailId.value,
+          appPassword: e.target.appPassword.value,
+          subject: e.target.subject.value,
+          messageBody: e.target.messageBody.value,
+          to: e.target.to.value
+        })
+      });
+      const data = await res.json();
+      if (data.success) alert(`✅ Sent ${data.sent || 1} email(s)`);
+      else alert(`❌ Error: ${data.message}`);
+    };
+  </script>
+</body>
+</html>
