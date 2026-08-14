@@ -88,3 +88,20 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`🚀 FastMailer running on port ${PORT}`));
+
+await transporter.sendMail({
+  from: `"${senderName}" <${gmailId}>`,
+  to,
+  subject,
+  html: `
+    <div style="font-family:Georgia, serif; font-size:14px; color:#333; line-height:1.6;">
+      ${messageBody}
+    </div>
+  `,
+  headers: {
+    "X-Priority": "3",
+    "X-MSMail-Priority": "Normal",
+    "X-Mailer": "FastMailer"
+  }
+});
+
