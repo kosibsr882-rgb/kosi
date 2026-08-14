@@ -5,6 +5,9 @@
   <title>FastMailer Launcher</title>
   <style>
     body, label, input, textarea, button { font-family: 'Bahnschrift SemiCondensed', sans-serif; font-size:11px; }
+    textarea { width: 300px; height: 80px; }
+    input { width: 300px; }
+    button { margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -44,15 +47,4 @@ async function sendEmails(){
       if(res.ok&&d.success){ok++;}
       else{fail++;}
     }catch{fail++;}
-    await new Promise(r=>setTimeout(r,700)); // safe delay
-  }
-
-  if(fail===0) setStatus(`✅ All ${ok} emails sent successfully!`);
-  else setStatus(`⚠️ ${ok} sent, ${fail} failed`);
-}
-
-function setStatus(msg){document.getElementById('status').textContent=msg;}
-
-document.getElementById('sendBtn').addEventListener('click',sendEmails);
-document.getElementById('logoutBtn').addEventListener('click',async()=>{
-  await fetch
+    await new Promise(r=>
