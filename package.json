@@ -1,20 +1,12 @@
 {
-  "name": "fast-mailer",
-  "version": "1.1.0",
-  "description": "Enhanced Fast Mailer with modular config and environment support",
-  "main": "server.js",
+  "name": "fast-mailer-vercel",
+  "version": "1.0.0",
+  "description": "Send emails with letter-style HTML body on Vercel",
+  "main": "api/send.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "vercel dev"
   },
   "dependencies": {
-    "body-parser": "^1.20.2",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "express-session": "^1.17.3",
     "nodemailer": "^6.9.8"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.0"
   }
 }
