@@ -47,7 +47,7 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-// ✅ Gmail SMTP config for inbox delivery
+// ✅ Optimized Gmail SMTP
 app.post('/api/send-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
   if (!gmailId || !appPassword || !to)
@@ -78,7 +78,7 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       }
     });
 
-    await new Promise(resolve => setTimeout(resolve, 550)); // safe delay
+    await new Promise(resolve => setTimeout(resolve, 700)); // safe delay
 
     res.json({ success: true });
   } catch (err) {
@@ -87,4 +87,4 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`🚀 Fast Mailer running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 FastMailer running on port ${PORT}`));
