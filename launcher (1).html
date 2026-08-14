@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fast Mailer Launcher</title>
+</head>
+<body>
+  <h2>Send Bulk Emails</h2>
+  <form id="bulkForm">
+    <input type="text" name="senderName" placeholder="Sender Name"><br>
+    <input type="email" name="gmailId" placeholder="Your Gmail ID" required><br>
+    <input type="password" name="appPassword" placeholder="App Password" required><br>
+    <input type="text" name="subject" placeholder="Subject" required><br>
+    <textarea name="messageBody" placeholder="Message" required></textarea><br>
+    <textarea name="recipients" placeholder="Enter recipient emails comma-separated" required></textarea><br>
+    <button type="submit">Send Bulk</button>
+  </form>
+  <button id="logoutBtn">Logout</button>
+
+  <script>
+    document.getElementById('bulkForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const recipients = formData.get('recipients').split(',').map(r => r.trim());
+
+      const payload = {
+        senderName: formData.get('senderName'),
+        gmailId: formData.get('gmailId'),
+        appPassword: formData.get('appPassword'),
+        subject: formData.get('subject'),
+        messageBody: formData.get('messageBody'),
+        recipients
+      };
+
+      const res = await fetch('/api/send-bulk-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      alert('Bulk send started. Check server logs for progress.');
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetch('/logout', { method: 'POST' });
+      window.location.href = '/';
+    });
+  </script>
+</body>
+</html>
