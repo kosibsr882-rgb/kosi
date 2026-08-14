@@ -47,7 +47,7 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-// ✅ Optimized Gmail SMTP
+// ✅ Gmail SMTP
 app.post('/api/send-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
   if (!gmailId || !appPassword || !to)
