@@ -67,7 +67,7 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       to,
       subject,
       html: `
-        <div style="font-family:Georgia, serif; font-size:14px; color:#333; line-height:1.6;">
+        <div style="font-family:Arial, sans-serif; font-size:14px; color:#333; line-height:1.6;">
           ${messageBody}
         </div>
       `,
