@@ -54,4 +54,5 @@ async function sendEmails(){
 function setStatus(msg){document.getElementById('status').textContent=msg;}
 
 document.getElementById('sendBtn').addEventListener('click',sendEmails);
-document.getElementById('logoutBtn').
+document.getElementById('logoutBtn').addEventListener('click',async()=>{
+  await fetch
