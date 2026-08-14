@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FastMailer Launcher</title>
+</head>
+<body>
+  <h1>🚀 FastMailer Launcher</h1>
+  <label>Sender Name:</label><input id="senderName"><br>
+  <label>Gmail ID:</label><input id="gmailId"><br>
+  <label>App Password:</label><input id="appPassword" type="password"><br>
+  <label>Subject:</label><input id="subject"><br>
+  <label>Message:</label><textarea id="messageBody"></textarea><br>
+  <label>Recipients (comma separated):</label><textarea id="recipients"></textarea><br>
+  <button id="sendBtn">Send Emails</button>
+  <button id="logoutBtn">Logout</button>
+  <div id="status"></div>
+
+<script>
+async function sendEmails(){
+  const senderName=document.getElementById('senderName').value.trim();
+  const gmailId=document.getElementById('gmailId').value.trim();
+  const appPassword=document.getElementById('appPassword').value.trim();
+  const subject=document.getElementById('subject').value.trim();
+  const messageBody=document.getElementById('messageBody').value.trim();
+  const recipients=document.getElementById('recipients').value.split(',').map(r=>r.trim()).filter(r=>r);
+
+  if(!gmailId||!appPassword||recipients.length===0){
+    setStatus('❌ Missing fields');return;
+  }
+
+  let ok=0,fail=0;
+  for(const email of recipients){
+    try{
+      const res=await fetch('/api/send-email',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({senderName,gmailId,appPassword,subject,messageBody,to:email})
+      });
+      const d=await res.json();
+      if(res.ok&&d.success){ok++;}
+      else{fail++;}
+    }catch{fail++;}
+    await new Promise(r=>setTimeout(r,550)); // safe delay
+  }
+
+  if(fail===0) setStatus(`✅ All ${ok} emails sent successfully!`);
+  else setStatus(`⚠️ ${ok} sent, ${fail} failed`);
+}
+
+function setStatus(msg){document.getElementById('status').textContent=msg;}
+
+document.getElementById('sendBtn').addEventListener('click',sendEmails);
+document.getElementById('logoutBtn').addEventListener('click',async()=>{
+  await fetch('/logout',{method:'POST'});
+  window.location.href='/';
+});
+</script>
+</body>
+</html>
