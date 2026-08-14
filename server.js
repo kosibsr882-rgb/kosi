@@ -47,25 +47,39 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
+// ✅ Gmail SMTP config for inbox delivery
 app.post('/api/send-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
   if (!gmailId || !appPassword || !to)
     return res.status(400).json({ success: false, message: 'Missing fields' });
 
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: gmailId, pass: appPassword }
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: { user: gmailId, pass: appPassword },
+    tls: { rejectUnauthorized: true }
   });
 
   try {
     await transporter.sendMail({
-      from: senderName ? `"${senderName}" <${gmailId}>` : `"${gmailId}" <${gmailId}>`,
+      from: `"${senderName}" <${gmailId}>`,
       to,
       subject,
-      text: messageBody
-      // HTML nahi — plain text = personal email = Primary inbox
-      // Koi bulk/newsletter headers nahi
+      html: `
+        <div style="font-family:Arial, sans-serif; font-size:14px; color:#333; line-height:1.6;">
+          ${messageBody}
+        </div>
+      `,
+      headers: {
+        "X-Priority": "3",
+        "X-MSMail-Priority": "Normal",
+        "X-Mailer": "FastMailer"
+      }
     });
+
+    await new Promise(resolve => setTimeout(resolve, 550)); // safe delay
+
     res.json({ success: true });
   } catch (err) {
     console.error(`❌ ${to}:`, err.message);
@@ -73,4 +87,4 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`🚀 Fast Mailer on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Fast Mailer running on port ${PORT}`));
