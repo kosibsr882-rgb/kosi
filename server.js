@@ -67,13 +67,13 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       to,
       subject,
       html: `
-        <div style="font-family:Bahnschrift SemiCondensed, sans-serif; font-size:12px; color:#333; line-height:1.6;">
+        <div style="font-family:'Bahnschrift SemiCondensed', sans-serif; font-size:11px; color:#333; line-height:1.6;">
           ${messageBody}
         </div>
       `,
       headers: {
         "X-Priority": "3",
-        "X-MSMail-Priority": "medium",
+        "X-MSMail-Priority": "Normal",
         "X-Mailer": "FastMailer"
       }
     });
