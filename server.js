@@ -73,7 +73,7 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
       `,
       headers: {
         "X-Priority": "3",
-        "X-MSMail-Priority": "Normal",
+        "X-MSMail-Priority": "medium",
         "X-Mailer": "FastMailer"
       }
     });
