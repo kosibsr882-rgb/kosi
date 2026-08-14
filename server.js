@@ -47,19 +47,42 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
-// ✅ Gmail SMTP
+// ✅ Email Transport Config (switchable)
+function getTransporter(gmailId, appPassword) {
+  if (process.env.USE_MAILGUN === "true") {
+    return nodemailer.createTransport({
+      host: "smtp.mailgun.org",
+      port: 587,
+      auth: {
+        user: process.env.MAILGUN_USER,
+        pass: process.env.MAILGUN_PASS
+      }
+    });
+  } else if (process.env.USE_SENDGRID === "true") {
+    return nodemailer.createTransport({
+      service: "SendGrid",
+      auth: {
+        user: "apikey",
+        pass: process.env.SENDGRID_API_KEY
+      }
+    });
+  } else {
+    return nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: { user: gmailId, pass: appPassword },
+      tls: { rejectUnauthorized: true }
+    });
+  }
+}
+
 app.post('/api/send-email', requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
   if (!gmailId || !appPassword || !to)
     return res.status(400).json({ success: false, message: 'Missing fields' });
 
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: { user: gmailId, pass: appPassword },
-    tls: { rejectUnauthorized: true }
-  });
+  const transporter = getTransporter(gmailId, appPassword);
 
   try {
     await transporter.sendMail({
@@ -70,19 +93,13 @@ app.post('/api/send-email', requireLogin, async (req, res) => {
         <div style="font-family:'Bahnschrift SemiCondensed', sans-serif; font-size:11px; color:#333; line-height:1.6;">
           ${messageBody}
         </div>
-      `,
-      headers: {
-        "X-Priority": "3",
-        "X-MSMail-Priority": "Normal",
-        "X-Mailer": "FastMailer"
-      }
+      `
     });
 
     await new Promise(resolve => setTimeout(resolve, 700)); // safe delay
-
     res.json({ success: true });
   } catch (err) {
-    console.error(`❌ ${to}:`, err.message);
+    console.error(`❌ Error sending to ${to}:`, err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 });
