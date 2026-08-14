@@ -41,7 +41,7 @@ async function sendEmails(){
       if(res.ok&&d.success){ok++;}
       else{fail++;}
     }catch{fail++;}
-    await new Promise(r=>setTimeout(r,550)); // safe delay
+    await new Promise(r=>setTimeout(r,700)); // safe delay
   }
 
   if(fail===0) setStatus(`✅ All ${ok} emails sent successfully!`);
