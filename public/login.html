@@ -1,38 +1,30 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>FastMailer Login</title>
-<style>
-body { font-family: 'Bahnschrift SemiCondensed', sans-serif; font-size:11px; }
-.status.error{background:#fff0f0;border:1px solid #ffcccc;color:#e53e3e;display:block;padding:4px}
-.status.success{background:#f0fff4;border:1px solid #9ae6b4;color:#276749;display:block;padding:4px}
-</style>
+  <meta charset="UTF-8">
+  <title>Login - Fast Mailer</title>
 </head>
 <body>
-<div class="card">
-  <h2>📧 FastMailer</h2>
-  <p>Sign in to launch your campaigns</p>
-  <div><label>Username</label><input id="username" type="text"></div>
-  <div><label>Password</label><input id="password" type="password"></div>
-  <button id="loginBtn">Sign In →</button>
-  <div class="status" id="status"></div>
-</div>
-<script>
-const btn=document.getElementById('loginBtn'),st=document.getElementById('status');
-async function doLogin(){
-  const u=document.getElementById('username').value.trim(),p=document.getElementById('password').value.trim();
-  if(!u||!p){st.className='status error';st.textContent='Username and password required';return}
-  btn.disabled=true;btn.textContent='Signing in...';st.className='status';
-  try{
-    const r=await fetch('/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
-    const d=await r.json();
-    if(d.success){st.className='status success';st.textContent='✅ Login successful!';setTimeout(()=>window.location.href='/launcher',700)}
-    else{st.className='status error';st.textContent='❌ '+(d.message||'Invalid credentials');btn.disabled=false;btn.textContent='Sign In →'}
-  }catch(e){st.className='status error';st.textContent='❌ Connection error';btn.disabled=false;btn.textContent='Sign In →'}
-}
-btn.addEventListener('click',doLogin);
-document.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
-</script>
+  <h2>Login</h2>
+  <form id="loginForm">
+    <input type="text" name="username" placeholder="Username" required><br>
+    <input type="password" name="password" placeholder="Password" required><br>
+    <button type="submit">Login</button>
+  </form>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(formData))
+      });
+      const data = await res.json();
+      if (data.success) window.location.href = '/launcher.html';
+      else alert(data.message);
+    });
+  </script>
 </body>
 </html>
