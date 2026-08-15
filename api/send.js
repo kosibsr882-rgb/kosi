@@ -18,7 +18,7 @@ module.exports = async (req, res) => {
   });
 
   try {
-    // recipients = array of emails
+    // recipients = array of emails (up to 25)
     const info = await transporter.sendMail({
       from: gmailId,
       to: recipients, // array or comma-separated string
