@@ -11,25 +11,21 @@ module.exports = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Missing fields' });
   }
 
-  // transporter setup
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user: gmailId, pass: appPassword }
   });
 
   try {
-    // recipients = array of emails (up to 25)
     const info = await transporter.sendMail({
       from: gmailId,
-      to: recipients, // array or comma-separated string
+      to: recipients, // array of emails (up to 25)
       subject,
       text: messageBody
     });
 
-    console.log('✅ Emails sent:', info.accepted);
     res.json({ success: true, sent: info.accepted });
   } catch (err) {
-    console.error('❌ Error:', err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 };
