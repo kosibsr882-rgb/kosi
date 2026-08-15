@@ -1,9 +1,9 @@
 {
   "name": "fast-mailer",
   "version": "1.0.0",
-  "main": "server.js",
+  "main": "api/send.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node api/send.js"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
