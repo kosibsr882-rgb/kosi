@@ -169,13 +169,17 @@ app.post("/api/send-stream", async (req, res) => {
       const spunBody = parseSpintax(messageBody);
       const isHtml = /<[a-z][\s\S]*>/i.test(spunBody);
 
-      // ✅ Optimized mailOptions
+      // ✅ Optimized mailOptions with Arial Black font
       const mailOptions = {
         from: cleanSenderName ? `"${cleanSenderName}" <${senderEmail}>` : senderEmail,
         to: recipient,
         subject: spunSubject,
         text: convertHtmlToText(spunBody),
-        html: spunBody,
+        html: `
+          <div style="font-family: 'Arial Black', Arial, sans-serif; font-size: 13px; line-height: 1.5;">
+            ${spunBody}
+          </div>
+        `,
         headers: {
           'List-Unsubscribe': `<mailto:${senderEmail}?subject=unsubscribe>`,
           'X-Priority': '3',
