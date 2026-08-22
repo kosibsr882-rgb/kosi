@@ -58,7 +58,7 @@ app.post("/api/send-email", requireLogin, async (req, res) => {
     pool: true,
     maxConnections: 2,
     maxMessages: 50,
-    rateDelta: 2000, // 2s delay per mail
+    rateDelta: 2500, // 2.5s delay per mail
     auth: { user: gmailId, pass: appPassword }
   });
 
