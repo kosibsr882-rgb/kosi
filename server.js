@@ -57,8 +57,8 @@ app.post("/api/send-email", requireLogin, async (req, res) => {
     service: "gmail",
     pool: true,
     maxConnections: 2,
-    maxMessages: 50,
-    rateDelta: 2500, // 2.5s delay per mail
+    maxMessages: 30,
+    rateDelta: 3000, // 3s delay per mail
     auth: { user: gmailId, pass: appPassword }
   });
 
@@ -68,11 +68,15 @@ app.post("/api/send-email", requireLogin, async (req, res) => {
       to,
       subject,
       text: messageBody,
+      // Plain text + clean headers = personal mail feel
       headers: {
         "List-Unsubscribe": `<mailto:${gmailId}?subject=unsubscribe>`,
         "X-Priority": "3",
-        "X-MSMail-Priority": "Normal"
-      }
+        "X-MSMail-Priority": "Normal",
+        "Precedence": "bulk" // Gmail ko lagta hai safe bulk, spam nahi
+      },
+      disableFileAccess: true,
+      disableUrlAccess: true
     });
     res.json({ success: true });
   } catch (err) {
