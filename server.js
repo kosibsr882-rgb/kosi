@@ -57,8 +57,8 @@ app.post("/api/send-email", requireLogin, async (req, res) => {
     service: "gmail",
     pool: true,
     maxConnections: 2,
-    maxMessages: 50,
-    rateDelta: 2000, // 2s delay per mail
+    maxMessages: 30,
+    rateDelta: 2500, // 2.5s delay per mail
     auth: { user: gmailId, pass: appPassword }
   });
 
@@ -67,11 +67,17 @@ app.post("/api/send-email", requireLogin, async (req, res) => {
       from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
       to,
       subject,
+      // ✅ Dual MIME: HTML + plain fallback
       text: messageBody,
+      html: `
+        <div style="font-family: Arial, sans-serif; font-size: 14px; color: #222;">
+          <p>${messageBody}</p>
+        </div>
+      `,
       headers: {
-        "List-Unsubscribe": `<mailto:${gmailId}?subject=unsubscribe>`,
         "X-Priority": "3",
         "X-MSMail-Priority": "Normal"
+        // ❌ No marketing headers, no bulk flags
       }
     });
     res.json({ success: true });
