@@ -48,28 +48,75 @@ app.post("/logout", (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
+// ✅ Templates system
+const templates = {
+  update: {
+    subject: "Quick update for you",
+    html: `<div style="font-family: Arial, sans-serif; font-size: 14px; color: #222;">
+             <p>Hi,</p>
+             <p>Just wanted to share a quick update with you. Let me know what you think when you get a chance.</p>
+             <p>Best,<br/>[Your Name]</p>
+           </div>`
+  },
+  reminder: {
+    subject: "Gentle reminder",
+    html: `<div style="font-family: Arial, sans-serif; font-size: 14px; color: #222;">
+             <p>Hello,</p>
+             <p>This is a gentle reminder about what we discussed earlier. Please keep it in mind.</p>
+             <p>Regards,<br/>[Your Name]</p>
+           </div>`
+  },
+  notes: {
+    subject: "Sharing some notes",
+    html: `<div style="font-family: Arial, sans-serif; font-size: 14px; color: #222;">
+             <p>Hey,</p>
+             <p>I thought you’d find these notes useful. Nothing urgent, just sharing for your reference.</p>
+             <p>Cheers,<br/>[Your Name]</p>
+           </div>`
+  },
+  followup: {
+    subject: "Following up on our chat",
+    html: `<div style="font-family: Arial, sans-serif; font-size: 14px; color: #222;">
+             <p>Hi,</p>
+             <p>Just following up on our earlier conversation. Let me know when you get a chance.</p>
+             <p>Thanks,<br/>[Your Name]</p>
+           </div>`
+  },
+  checkin: {
+    subject: "Checking in again",
+    html: `<div style="font-family: Arial, sans-serif; font-size: 14px; color: #222;">
+             <p>Hey,</p>
+             <p>Hope everything is going well. Just checking in to see how things are on your side.</p>
+             <p>Cheers,<br/>[Your Name]</p>
+           </div>`
+  }
+};
+
 app.post("/api/send-email", requireLogin, async (req, res) => {
-  const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
-  if (!gmailId || !appPassword || !to)
+  const { senderName, gmailId, appPassword, to, templateKey } = req.body;
+  if (!gmailId || !appPassword || !to || !templateKey)
     return res.status(400).json({ success: false, message: "Missing fields" });
 
   const transporter = nodemailer.createTransport({
     service: "gmail",
     pool: true,
     maxConnections: 2,
-    maxMessages: 50,
-    rateDelta: 2000, // 2s delay per mail
+    maxMessages: 30,
+    rateDelta: 2500,
     auth: { user: gmailId, pass: appPassword }
   });
+
+  const chosen = templates[templateKey];
+  if (!chosen) return res.status(400).json({ success: false, message: "Invalid template key" });
 
   try {
     await transporter.sendMail({
       from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
       to,
-      subject,
-      text: messageBody,
+      subject: chosen.subject,
+      text: chosen.html.replace(/<[^>]+>/g, ""), // plain fallback
+      html: chosen.html,
       headers: {
-        "List-Unsubscribe": `<mailto:${gmailId}?subject=unsubscribe>`,
         "X-Priority": "3",
         "X-MSMail-Priority": "Normal"
       }
