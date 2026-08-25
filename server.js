@@ -9,6 +9,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Middleware setup
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
@@ -19,11 +20,13 @@ app.use(session({
 }));
 app.use(express.static(path.join(process.cwd(), "public")));
 
+// Auth check
 function requireLogin(req, res, next) {
   if (req.session?.loggedIn) return next();
   res.redirect("/");
 }
 
+// Routes
 app.get("/", (req, res) => {
   if (req.session?.loggedIn) return res.redirect("/launcher");
   res.sendFile(path.join(process.cwd(), "public", "login.html"));
@@ -48,18 +51,21 @@ app.post("/logout", (req, res) => {
   req.session.destroy(() => res.json({ success: true }));
 });
 
+// Email API
 app.post("/api/send-email", requireLogin, async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
   if (!gmailId || !appPassword || !to)
     return res.status(400).json({ success: false, message: "Missing fields" });
 
+  // Nodemailer transporter with inbox-friendly settings
   const transporter = nodemailer.createTransport({
     service: "gmail",
     pool: true,
-    maxConnections: 2,
-    maxMessages: 50,
-    rateDelta: 2000, // 2s delay per mail
-    auth: { user: gmailId, pass: appPassword }
+    maxConnections: 1,
+    maxMessages: 25, // limit
+    rateDelta: 3000, // 3s delay per mail
+    auth: { user: gmailId, pass: appPassword },
+    tls: { rejectUnauthorized: true }
   });
 
   try {
@@ -67,11 +73,9 @@ app.post("/api/send-email", requireLogin, async (req, res) => {
       from: senderName ? `"${senderName}" <${gmailId}>` : gmailId,
       to,
       subject,
-      text: messageBody,
+      text: messageBody, // keep plain text for inbox-friendly delivery
       headers: {
-        "List-Unsubscribe": `<mailto:${gmailId}?subject=unsubscribe>`,
-        "X-Priority": "3",
-        "X-MSMail-Priority": "Normal"
+        "List-Unsubscribe": `<mailto:${gmailId}?subject=unsubscribe>`
       }
     });
     res.json({ success: true });
