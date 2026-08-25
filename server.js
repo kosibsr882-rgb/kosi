@@ -10,7 +10,12 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// ✅ Simple login check (no sessions, just env vars)
+// ✅ Root route
+app.get("/", (req, res) => {
+  res.send("🚀 Fast Mailer is running!");
+});
+
+// ✅ Simple login
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
   if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
@@ -19,7 +24,7 @@ app.post("/login", (req, res) => {
   res.json({ success: false, message: "Invalid credentials" });
 });
 
-// ✅ Email send route
+// ✅ Email send
 app.post("/send-email", async (req, res) => {
   const { senderName, gmailId, appPassword, subject, messageBody, to } = req.body;
   if (!gmailId || !appPassword || !to) {
@@ -30,7 +35,7 @@ app.post("/send-email", async (req, res) => {
     service: "gmail",
     pool: true,
     maxConnections: 1,
-    maxMessages: 25, // limit
+    maxMessages: 25,
     rateDelta: 3000, // 3s delay per mail
     auth: { user: gmailId, pass: appPassword }
   });
