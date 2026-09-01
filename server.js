@@ -4,6 +4,10 @@ import nodemailer from 'nodemailer';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dns from 'dns';
+import { promisify } from 'util';
+
+const dnsResolveMx = promisify(dns.resolveMx);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -11,57 +15,91 @@ const __dirname = path.dirname(__filename);
 // ==================== CONFIGURATION ====================
 const CONFIG = {
   PORT: process.env.PORT || 3000,
-  SITE_PASSWORD: process.env.SITE_PASSWORD || 'Y##',
-  TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY || '1x0000000000000000000000000000000AA',
-  BATCH_SIZE: 3,
-  MAX_SPINTAX_ITERATIONS: 35,
-  KEEP_ALIVE_INTERVAL: 4000,
-  MIN_BATCH_DELAY: 1800,
-  MAX_BATCH_DELAY: 2800,
-  MIN_STAGGER_DELAY: 200,
-  MAX_STAGGER_DELAY: 350
+  SITE_PASSWORD: process.env.SITE_PASSWORD || '',
+  TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY || '',
+  
+  // Reputation-safe rate limiting
+  BATCH_SIZE: 1,                    // 1 email at a time for reputation
+  DELAY_BETWEEN_EMAILS: 2000,       // 2 seconds gap (respectful)
+  DELAY_BETWEEN_BATCHES: 5000,      // 5 seconds between batches
+  MAX_DAILY_PER_SENDER: 500,        // Gmail daily limit respect
+  
+  // Timeouts
+  SMTP_TIMEOUT: 30000,
+  CONNECTION_TIMEOUT: 30000,
+  
+  // Domain validation
+  VALIDATE_MX_RECORDS: true
 };
 
-// ==================== STATE MANAGEMENT ====================
+// ==================== STATE ====================
 const globalSession = { stopRequested: false };
-const transporterPool = new Map();
-
+const dailySentCount = new Map(); // Track per-sender daily limits
 const app = express();
 
 // ==================== MIDDLEWARE ====================
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ==================== SENSITIVE WORDS SHIELD ====================
-const SENSITIVE_WORDS = [
-  'screenshot', 'screenshots', 'report', 'reports', 'seo', 'details',
-  'quote', 'quotes', 'information', 'audit', 'ranking', '1st page',
-  'first page', 'traffic', 'proposal', 'price', 'pricing', 'guarantee',
-  'free', 'deal', 'offer', 'urgent', 'leads', 'cheap', 'cost'
-];
-
-function applyKeywordShield(text) {
-  if (!text) return '';
-  let shielded = String(text);
-
-  SENSITIVE_WORDS.forEach(word => {
-    const regex = new RegExp(`\\b(${word})\\b`, 'gi');
-    shielded = shielded.replace(regex, (match) => {
-      return match.length >= 2 ? match[0] + '&zwnj;' + match.slice(1) : match;
-    });
-  });
-
-  return shielded;
+// ==================== EMAIL VALIDATION ====================
+async function validateEmail(email) {
+  const errors = [];
+  
+  // Basic format check
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    errors.push('Invalid email format');
+    return { valid: false, errors };
+  }
+  
+  // Check for role-based emails (lower engagement = spam folder)
+  const roleEmails = [
+    'noreply@', 'no-reply@', 'admin@', 'postmaster@', 
+    'webmaster@', 'hostmaster@', 'abuse@', 'info@', 
+    'sales@', 'support@', 'contact@', 'marketing@'
+  ];
+  
+  const lowerEmail = email.toLowerCase();
+  if (roleEmails.some(role => lowerEmail.startsWith(role))) {
+    errors.push('Role-based emails have lower inbox rates');
+  }
+  
+  // Disposable domain check (common list)
+  const disposableDomains = [
+    'tempmail.com', '10minutemail.com', 'guerrillamail.com',
+    'mailinator.com', 'yopmail.com', 'throwawaymail.com'
+  ];
+  
+  const domain = lowerEmail.split('@')[1];
+  if (disposableDomains.includes(domain)) {
+    errors.push('Disposable email detected');
+  }
+  
+  // MX Record validation
+  if (CONFIG.VALIDATE_MX_RECORDS) {
+    try {
+      const mxRecords = await dnsResolveMx(domain);
+      if (!mxRecords || mxRecords.length === 0) {
+        errors.push('No MX records found for domain');
+      }
+    } catch (err) {
+      errors.push('Domain MX lookup failed');
+    }
+  }
+  
+  return { 
+    valid: errors.length === 0, 
+    errors,
+    domain 
+  };
 }
 
 // ==================== TURNSTILE VERIFICATION ====================
 async function verifyTurnstileToken(token, remoteIp) {
-  if (!token || CONFIG.TURNSTILE_SECRET_KEY.startsWith('1x0000000000000000000000000000000AA')) {
-    return true;
-  }
-
+  if (!token || !CONFIG.TURNSTILE_SECRET_KEY) return true;
+  
   try {
     const formData = new URLSearchParams();
     formData.append('secret', CONFIG.TURNSTILE_SECRET_KEY);
@@ -73,143 +111,108 @@ async function verifyTurnstileToken(token, remoteIp) {
       body: formData,
       headers: { 'content-type': 'application/x-www-form-urlencoded' }
     });
-
+    
     const outcome = await response.json();
     return outcome.success === true;
   } catch (error) {
-    console.error('Turnstile verification error:', error.message);
+    console.error('Turnstile error:', error.message);
     return false;
   }
 }
 
-// ==================== SMTP TRANSPORTER POOL ====================
-function getGmailTransporter(email, appPassword) {
+// ==================== SMTP TRANSPORTER ====================
+function createTransporter(email, appPassword) {
   const cleanEmail = email.toLowerCase().trim();
   const cleanPass = appPassword.replace(/\s+/g, '').trim();
-  const poolKey = `gmail_pool_${cleanEmail}`;
 
-  if (!transporterPool.has(poolKey)) {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      requireTLS: true,
-      auth: {
-        user: cleanEmail,
-        pass: cleanPass
-      },
-      pool: true,
-      maxConnections: 3,
-      maxMessages: 1000,
-      socketTimeout: 35000,
-      connectionTimeout: 35000
-    });
-
-    transporterPool.set(poolKey, transporter);
-  }
-
-  return transporterPool.get(poolKey);
+  return nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    auth: {
+      user: cleanEmail,
+      pass: cleanPass
+    },
+    // NO POOLING for reputation - fresh connection each time
+    pool: false,
+    socketTimeout: CONFIG.SMTP_TIMEOUT,
+    connectionTimeout: CONFIG.CONNECTION_TIMEOUT,
+    
+    // Proper TLS for reputation
+    tls: {
+      rejectUnauthorized: true,
+      minVersion: 'TLSv1.2'
+    }
+  });
 }
 
 // ==================== RECIPIENT PARSER ====================
 function parseRecipient(input) {
   let email = '';
-  let rawName = '';
+  let name = '';
+  let metadata = {};
 
   if (typeof input === 'object' && input !== null) {
     email = (input.email || input.recipient || '').trim();
-    rawName = (input.name || input.fullName || input.first_name || '').trim();
+    name = (input.name || input.fullName || input.firstName || '').trim();
+    metadata = {
+      company: input.company || '',
+      tags: input.tags || []
+    };
   } else if (typeof input === 'string') {
     const str = input.trim();
-    
-    // Format: "Name" <email@domain.com>
     const angleMatch = str.match(/^(?:"?([^"]*)"?\s)?<([^>]+)>$/);
     if (angleMatch) {
-      rawName = angleMatch[1]?.trim() || '';
+      name = angleMatch[1]?.trim() || '';
       email = angleMatch[2].trim();
-    }
-    // Format: email@domain.com, Name
-    else if (str.includes(',')) {
-      const parts = str.split(',');
-      if (parts[0].includes('@')) {
-        email = parts[0].trim();
-        rawName = parts[1].trim();
-      } else {
-        rawName = parts[0].trim();
-        email = parts[1].trim();
-      }
-    }
-    // Plain email
-    else {
+    } else {
       email = str;
     }
   }
 
-  // Derive name from email prefix if not provided
-  if (!rawName && email.includes('@')) {
+  // Format name
+  if (name) {
+    name = name.split(/\s+/)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
+  } else if (email.includes('@')) {
     const prefix = email.split('@')[0];
-    rawName = prefix.replace(/[0-9_.-]/g, ' ').trim();
+    name = prefix.replace(/[0-9_.-]/g, ' ').trim();
+    name = name.split(/\s+/)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
   }
 
-  // Format name properly
-  const formattedName = rawName
-    ? rawName.split(/\s+/).map(w => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' ')
-    : '';
-
-  const firstName = formattedName ? formattedName.split(' ')[0] : '';
+  const firstName = name ? name.split(' ')[0] : '';
   const domain = email.includes('@') ? email.split('@')[1] : '';
 
-  return {
-    email: email.toLowerCase(),
-    name: formattedName,
-    firstName,
-    domain
-  };
-}
-
-// ==================== SPINTAX ENGINE ====================
-function parseSpintax(text) {
-  if (!text) return '';
-  let result = String(text);
-  const regex = /\{([^{}]+)\}/s;
-  let iterations = 0;
-
-  while (regex.test(result) && iterations < CONFIG.MAX_SPINTAX_ITERATIONS) {
-    result = result.replace(regex, (_, choices) => {
-      if (!choices.includes('|')) return choices;
-      const options = choices.split('|');
-      const pick = options[Math.floor(Math.random() * options.length)];
-      return pick?.trim() || '';
-    });
-    iterations++;
-  }
-
-  return result.replace(/[\{\}]/g, '').trim();
+  return { email: email.toLowerCase(), name, firstName, domain, metadata };
 }
 
 // ==================== CONTENT PERSONALIZATION ====================
 function personalizeContent(template, recipient) {
   if (!template) return '';
   
-  let content = parseSpintax(template);
   const displayName = recipient.name || recipient.firstName || 'there';
-  const displayFirstName = recipient.firstName || displayName;
+  const firstName = recipient.firstName || displayName;
 
   const replacements = {
-    '{Name}': displayName,
-    '{name}': displayName,
-    '{FirstName}': displayFirstName,
-    '{firstName}': displayFirstName,
-    '{First_Name}': displayFirstName,
-    '{first_name}': displayFirstName,
-    '{Email}': recipient.email,
-    '{email}': recipient.email,
-    '{Domain}': recipient.domain,
-    '{domain}': recipient.domain
+    '{{name}}': displayName,
+    '{{Name}}': displayName,
+    '{{firstName}}': firstName,
+    '{{FirstName}}': firstName,
+    '{{first_name}}': firstName,
+    '{{email}}': recipient.email,
+    '{{Email}}': recipient.email,
+    '{{domain}}': recipient.domain,
+    '{{Domain}}': recipient.domain,
+    '{{company}}': recipient.metadata.company || ''
   };
 
+  let content = template;
   Object.entries(replacements).forEach(([key, value]) => {
-    content = content.replace(new RegExp(key, 'g'), value);
+    content = content.split(key).join(value);
   });
 
   return content;
@@ -225,58 +228,102 @@ function htmlToPlainText(html) {
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<\/div>/gi, '\n')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    .replace(/<li>/gi, '• ')
     .replace(/<[^>]+>/g, '')
-    .replace(/&zwnj;/g, '')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
     .replace(/\n\s*\n/g, '\n\n')
     .trim();
 }
 
-// ==================== EMAIL BUILDER ====================
-function buildEmailPayload(senderEmail, senderName, recipient, subject, body) {
+// ==================== EMAIL BUILDER (INBOX OPTIMIZED) ====================
+function buildEmailPayload(senderEmail, senderName, recipient, subject, body, options = {}) {
   const personalizedSubject = personalizeContent(subject, recipient);
   const personalizedBody = personalizeContent(body, recipient);
+  
   const isHtml = /<[a-z][\s\S]*>/i.test(personalizedBody);
-
-  let htmlBody = isHtml ? personalizedBody : personalizedBody.replace(/\n/g, '<br>');
-  htmlBody = applyKeywordShield(htmlBody);
-
   const cleanSenderName = (senderName || '').replace(/["\r\n]/g, '').trim();
   const fromField = cleanSenderName ? `"${cleanSenderName}" <${senderEmail}>` : senderEmail;
   const toField = recipient.name ? `"${recipient.name}" <${recipient.email}>` : recipient.email;
 
-  const formattedHtml = `
-  <!--[if mso]>
-  <style type="text/css">
-    body, table, td, p, div, span { font-size: 16.5px !important; font-family: Calibri, 'Segoe UI', Arial, sans-serif !important; line-height: 1.7 !important; }
-  </style>
-  <div style="margin-top: 18px; line-height: 1.7;">
-  <![endif]-->
-  <div dir="ltr" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; color: #0f172a; line-height: 1.65; margin-top: 16px; padding-top: 2px;">
-    ${htmlBody}
-  </div>
-  <!--[if mso]>
-  </div>
-  <![endif]-->`;
+  // Clean HTML structure (no zero-width chars, no hidden text)
+  let htmlContent = isHtml ? personalizedBody : personalizedBody.replace(/\n/g, '<br>');
+  
+  // Ensure proper HTML document structure
+  const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${personalizedSubject}</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #1a1a1a; max-width: 600px; margin: 0 auto; padding: 20px;">
+  ${htmlContent}
+  ${options.unsubscribeUrl ? `
+  <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
+  <p style="font-size: 13px; color: #666;">
+    You're receiving this because you subscribed to our updates.<br>
+    <a href="${options.unsubscribeUrl}" style="color: #666;">Unsubscribe</a>
+  </p>` : ''}
+</body>
+</html>`;
+
+  const plainText = htmlToPlainText(personalizedBody) + 
+    (options.unsubscribeUrl ? `\n\n---\nUnsubscribe: ${options.unsubscribeUrl}` : '');
+
+  // INBOX-OPTIMIZED HEADERS
+  const headers = {
+    // Prevent auto-replies to bulk
+    'Precedence': 'bulk',
+    
+    // Identify as marketing/newsletter (honest = better reputation)
+    'X-Mailer': 'LegitimateMailer/1.0',
+    'X-Priority': '3', // Normal priority (1 = high, often spammy)
+    
+    // Campaign tracking (helps ESPs understand you're legitimate)
+    'X-Campaign-ID': options.campaignId || `campaign-${Date.now()}`,
+    
+    // List management (CRITICAL for inbox delivery)
+    'List-ID': options.listId || `<${senderEmail.split('@')[1]}>`,
+    
+    // Unsubscribe header (REQUIRED by Gmail for bulk)
+    ...(options.unsubscribeUrl ? {
+      'List-Unsubscribe': `<${options.unsubscribeUrl}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+    } : {})
+  };
 
   return {
     from: fromField,
     to: toField,
     replyTo: senderEmail,
-    date: new Date(),
-    subject: personalizedSubject || 'No Subject',
-    html: formattedHtml,
-    text: `\n\n${htmlToPlainText(personalizedBody)}`,
-    textEncoding: 'quoted-printable',
-    encoding: 'utf-8'
+    subject: personalizedSubject,
+    
+    // Proper multipart structure (HTML + Text)
+    html: fullHtml,
+    text: plainText,
+    
+    // Encoding
+    encoding: 'utf-8',
+    
+    // Custom headers for deliverability
+    headers,
+    
+    // DKIM will be applied automatically by Gmail SMTP
+    // But we ensure proper envelope
+    envelope: {
+      from: senderEmail,
+      to: recipient.email
+    }
   };
 }
 
 // ==================== STREAM HELPERS ====================
-function setupSSEHeaders(res) {
+function setupSSE(res) {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
@@ -291,29 +338,38 @@ function sendDone(res) {
   res.write('data: [DONE]\n\n');
 }
 
-function getRandomDelay(min, max) {
-  return Math.floor(min + Math.random() * (max - min));
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ==================== DAILY LIMIT CHECK ====================
+function checkDailyLimit(senderEmail) {
+  const today = new Date().toISOString().split('T')[0];
+  const key = `${senderEmail}:${today}`;
+  const current = dailySentCount.get(key) || 0;
+  
+  if (current >= CONFIG.MAX_DAILY_PER_SENDER) {
+    return { allowed: false, sent: current, limit: CONFIG.MAX_DAILY_PER_SENDER };
+  }
+  
+  dailySentCount.set(key, current + 1);
+  return { allowed: true, sent: current + 1, limit: CONFIG.MAX_DAILY_PER_SENDER };
 }
 
 // ==================== ROUTES ====================
 
-// Home
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Auth
 app.post('/api/auth', (req, res) => {
   const { password } = req.body;
-  
   if (password === CONFIG.SITE_PASSWORD) {
     return res.json({ success: true, message: 'Authorized' });
   }
-  
-  return res.status(401).json({ success: false, message: 'Unauthorized Password' });
+  return res.status(401).json({ success: false, message: 'Unauthorized' });
 });
 
-// Verify SMTP
 app.post('/api/verify', async (req, res) => {
   const { email, appPassword, cfToken } = req.body;
   const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -325,41 +381,53 @@ app.post('/api/verify', async (req, res) => {
   if (cfToken) {
     const isHuman = await verifyTurnstileToken(cfToken, clientIp);
     if (!isHuman) {
-      return res.status(403).json({ success: false, message: 'Security Verification Failed' });
+      return res.status(403).json({ success: false, message: 'Verification failed' });
     }
   }
 
   try {
-    const transporter = getGmailTransporter(email, appPassword);
+    const transporter = createTransporter(email, appPassword);
     await transporter.verify();
-    return res.json({ success: true, message: 'SMTP verified successfully' });
+    return res.json({ success: true, message: 'SMTP verified' });
   } catch (error) {
     return res.status(401).json({
       success: false,
-      message: error.message || 'SMTP Auth Failed. Check 16-char App Password.'
+      message: error.message || 'SMTP Auth Failed'
     });
   }
 });
 
-// Send Stream
+// ==================== MAIN SEND ROUTE (REPUTATION SAFE) ====================
 app.post('/api/send-stream', async (req, res) => {
-  setupSSEHeaders(res);
+  setupSSE(res);
 
-  const { email, appPassword, senderName, subject, messageBody, recipients, cfToken } = req.body;
+  const { 
+    email, 
+    appPassword, 
+    senderName, 
+    subject, 
+    messageBody, 
+    recipients, 
+    cfToken,
+    campaignId,
+    listId,
+    unsubscribeUrl
+  } = req.body;
+
   const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
   // Validation
   if (!email || !appPassword || !Array.isArray(recipients) || recipients.length === 0) {
-    sendSSE(res, { success: false, error: 'Invalid Request Data' });
+    sendSSE(res, { success: false, error: 'Invalid request data' });
     res.end();
     return;
   }
 
-  // Turnstile check
+  // Turnstile
   if (cfToken) {
     const isHuman = await verifyTurnstileToken(cfToken, clientIp);
     if (!isHuman) {
-      sendSSE(res, { success: false, error: 'Turnstile Verification Failed' });
+      sendSSE(res, { success: false, error: 'Security check failed' });
       res.end();
       return;
     }
@@ -368,97 +436,113 @@ app.post('/api/send-stream', async (req, res) => {
   const cleanEmail = email.toLowerCase().trim();
   globalSession.stopRequested = false;
 
-  // Keep-alive ping
-  const keepAlive = setInterval(() => {
-    try { res.write(': keep-alive\n\n'); } catch {}
-  }, CONFIG.KEEP_ALIVE_INTERVAL);
+  // Check daily limit
+  const limitCheck = checkDailyLimit(cleanEmail);
+  if (!limitCheck.allowed) {
+    sendSSE(res, { 
+      success: false, 
+      error: `Daily limit reached (${limitCheck.sent}/${limitCheck.limit})` 
+    });
+    res.end();
+    return;
+  }
 
-  const transporter = getGmailTransporter(email, appPassword);
+  // Keep-alive
+  const keepAlive = setInterval(() => {
+    try { res.write(': ping\n\n'); } catch {}
+  }, 5000);
+
+  const transporter = createTransporter(email, appPassword);
+  const results = { sent: 0, failed: 0, errors: [] };
 
   try {
-    for (let i = 0; i < recipients.length; i += CONFIG.BATCH_SIZE) {
+    for (let i = 0; i < recipients.length; i++) {
       if (globalSession.stopRequested) {
-        sendSSE(res, { success: false, error: 'Stopped by User' });
+        sendSSE(res, { success: false, error: 'Stopped by user', partial: true });
         break;
       }
 
-      const batch = recipients.slice(i, i + CONFIG.BATCH_SIZE);
+      const rawRecipient = recipients[i];
+      const recipient = parseRecipient(rawRecipient);
 
-      const sendPromises = batch.map(async (rawRecipient, idx) => {
-        const recipient = parseRecipient(rawRecipient);
-        
-        if (!recipient.email) {
-          return { success: false, recipient: '', error: 'Invalid Email' };
-        }
-
-        try {
-          // Micro-stagger inside batch
-          if (idx > 0) {
-            await new Promise(r => setTimeout(r, getRandomDelay(
-              CONFIG.MIN_STAGGER_DELAY, 
-              CONFIG.MAX_STAGGER_DELAY
-            )));
-          }
-
-          const mailOptions = buildEmailPayload(
-            cleanEmail, 
-            senderName, 
-            recipient, 
-            subject, 
-            messageBody
-          );
-
-          await transporter.sendMail(mailOptions);
-          
-          return { 
-            success: true, 
-            recipient: recipient.email, 
-            name: recipient.name 
-          };
-
-        } catch (err) {
-          return { 
-            success: false, 
-            recipient: recipient.email, 
-            error: err.message 
-          };
-        }
-      });
-
-      const results = await Promise.allSettled(sendPromises);
-
-      for (const result of results) {
-        if (result.status === 'fulfilled' && result.value.recipient) {
-          sendSSE(res, result.value);
-        }
+      // Validate email
+      const validation = await validateEmail(recipient.email);
+      if (!validation.valid) {
+        sendSSE(res, { 
+          success: false, 
+          recipient: recipient.email, 
+          error: `Validation failed: ${validation.errors.join(', ')}` 
+        });
+        results.failed++;
+        continue;
       }
 
-      // Batch delay (except last batch)
-      if (i + CONFIG.BATCH_SIZE < recipients.length) {
-        await new Promise(r => setTimeout(r, getRandomDelay(
-          CONFIG.MIN_BATCH_DELAY, 
-          CONFIG.MAX_BATCH_DELAY
-        )));
+      try {
+        // Build clean, inbox-optimized email
+        const mailOptions = buildEmailPayload(
+          cleanEmail,
+          senderName,
+          recipient,
+          subject,
+          messageBody,
+          { campaignId, listId, unsubscribeUrl }
+        );
+
+        const info = await transporter.sendMail(mailOptions);
+        
+        results.sent++;
+        sendSSE(res, { 
+          success: true, 
+          recipient: recipient.email, 
+          name: recipient.name,
+          messageId: info.messageId,
+          progress: `${i + 1}/${recipients.length}`
+        });
+
+      } catch (err) {
+        results.failed++;
+        results.errors.push({ email: recipient.email, error: err.message });
+        sendSSE(res, { 
+          success: false, 
+          recipient: recipient.email, 
+          error: err.message 
+        });
+      }
+
+      // REPUTATION-SAFE DELAY (not evasion, but respect)
+      if (i < recipients.length - 1) {
+        await sleep(CONFIG.DELAY_BETWEEN_EMAILS);
       }
     }
+
+    // Final summary
+    sendSSE(res, { 
+      success: true, 
+      summary: true,
+      total: recipients.length,
+      sent: results.sent,
+      failed: results.failed
+    });
+
   } catch (error) {
     sendSSE(res, { success: false, error: error.message });
   } finally {
     clearInterval(keepAlive);
     sendDone(res);
     res.end();
+    
+    // Close transporter
+    try { await transporter.close(); } catch {}
   }
 });
 
-// Stop
 app.post('/api/stop', (req, res) => {
   globalSession.stopRequested = true;
-  res.json({ success: true, message: 'Sending process stopped' });
+  res.json({ success: true, message: 'Stop requested' });
 });
 
-// ==================== START SERVER ====================
 app.listen(CONFIG.PORT, () => {
-  console.log(`🚀 Mailer server running on port ${CONFIG.PORT}`);
+  console.log(`📧 Inbox-Optimized Mailer running on port ${CONFIG.PORT}`);
 });
 
 export default app;
