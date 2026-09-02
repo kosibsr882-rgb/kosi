@@ -1,8 +1,9 @@
 {
-  "name": "bulk-email-sender",
+  "name": "kosi-mailer",
   "version": "1.0.0",
-  "type": "module",
+  "description": "Inbox Optimized Email Sender",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
