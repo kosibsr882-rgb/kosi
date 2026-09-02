@@ -4,6 +4,7 @@ import nodemailer from 'nodemailer';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,7 +50,7 @@ async function verifyTurnstileToken(token, remoteIp) {
 }
 
 /* ==========================================================================
-   GMAIL TLS TRANSPORTER POOL (Port 587 STARTTLS)
+   GMAIL TLS TRANSPORTER POOL (Port 587 STARTTLS - Inbox Optimized)
    ========================================================================== */
 function getPort587Transporter(email, appPassword) {
   const cleanEmail = email.toLowerCase().trim();
@@ -60,17 +61,17 @@ function getPort587Transporter(email, appPassword) {
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 587,
-      secure: false, // Standard RFC STARTTLS
+      secure: false, 
       requireTLS: true,
       auth: {
         user: cleanEmail,
         pass: cleanPass
       },
       pool: true,
-      maxConnections: 3, // Synchronized 3-Batch Processing
-      maxMessages: 1000,
-      socketTimeout: 35000,
-      connectionTimeout: 35000
+      maxConnections: 2, // Conservative batching for better inbox delivery
+      maxMessages: 500,
+      socketTimeout: 40000,
+      connectionTimeout: 40000
     });
     poolMap.set(key, transporter);
   }
@@ -78,13 +79,12 @@ function getPort587Transporter(email, appPassword) {
 }
 
 /* ==========================================================================
-   ZERO-WIDTH SHIELD (Masks High-Risk Keywords From Bayesian Filters)
+   SMART KEYWORD SHIELD & SPAM WORD REDUCTION
    ========================================================================== */
 const SENSITIVE_WORDS = [
-  'screenshot', 'screenshots', 'report', 'reports', 'seo', 'details',
-  'quote', 'quotes', 'information', 'audit', 'ranking', '1st page',
-  'first page', 'traffic', 'proposal', 'price', 'pricing', 'guarantee',
-  'free', 'deal', 'offer', 'urgent', 'leads', 'cheap', 'cost'
+  'screenshot', 'reports', 'seo', 'audit', 'ranking', 
+  'traffic', 'proposal', 'pricing', 'guarantee', 'free', 
+  'deal', 'offer', 'urgent', 'leads', 'cheap', 'cost'
 ];
 
 function applyKeywordFilterShield(text) {
@@ -241,13 +241,13 @@ app.post('/api/verify', async (req, res) => {
   } catch (error) {
     return res.status(401).json({
       success: false,
-      message: error.message || 'SMTP Auth Failed. Check 16-char App Password.'
+      message: error.message || 'SMTP Auth Failed. Check App Password.'
     });
   }
 });
 
 /* ==========================================================================
-   PRIMARY INBOX STREAMING DISPATCH ROUTE (3-BATCH ENGINE)
+   STREAMING DISPATCH ROUTE (Inbox Friendly Execution)
    ========================================================================== */
 app.post('/api/send-stream', async (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
@@ -282,7 +282,7 @@ app.post('/api/send-stream', async (req, res) => {
   }, 4000);
 
   const transporter = getPort587Transporter(email, appPassword);
-  const BATCH_SIZE = 3; // 3 Parallel Emails
+  const BATCH_SIZE = 2; // Reduced batch size for safer reputation management
 
   for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
     if (globalSession.stopRequested) {
@@ -298,8 +298,8 @@ app.post('/api/send-stream', async (req, res) => {
 
       try {
         if (idx > 0) {
-          // Micro-stagger inside 3-batch (200ms - 350ms) to defeat rate limits
-          await new Promise(resolve => setTimeout(resolve, Math.floor(200 + Math.random() * 150)));
+          // Add micro-delays to simulate natural hand-typed intervals
+          await new Promise(resolve => setTimeout(resolve, Math.floor(400 + Math.random() * 300)));
         }
 
         const personalizedSubject = personalizeContent(subject, recipient);
@@ -310,37 +310,35 @@ app.post('/api/send-stream', async (req, res) => {
           ? personalizedBody
           : personalizedBody.replace(/\n/g, '<br>');
 
-        // Apply invisible keyword protection
         cleanBodyText = applyKeywordFilterShield(cleanBodyText);
 
-        // Outlook: 16.5px (12.5pt) | Gmail: 15px | 1-line top margin gap
         const formattedHtml = `
-        <!--[if mso]>
-        <style type="text/css">
-          body, table, td, p, div, span { font-size: 16.5px !important; font-family: Calibri, 'Segoe UI', Arial, sans-serif !important; line-height: 1.7 !important; }
-        </style>
-        <div style="margin-top: 18px; line-height: 1.7;">
-        <![endif]-->
-        <div dir="ltr" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; color: #0f172a; line-height: 1.65; margin-top: 16px; padding-top: 2px;">
+        <div dir="ltr" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; color: #111827; line-height: 1.6; margin-top: 10px;">
           ${cleanBodyText}
-        </div>
-        <!--[if mso]>
-        </div>
-        <![endif]-->`;
+        </div>`;
 
-        const plainTextFormatted = `\n\n${createCleanPlainText(personalizedBody)}`;
+        const plainTextFormatted = `${createCleanPlainText(personalizedBody)}`;
 
-        // Authentic RFC 5322 Standard Payload (Quoted-Printable for Zero Spam Flags)
+        // Unique Message-ID generation per mail item to prevent spam filters grouping them
+        const domainPart = cleanEmail.split('@')[1] || 'gmail.com';
+        const uniqueMessageId = `<${crypto.randomBytes(16).toString('hex')}.${Date.now()}@${domainPart}>`;
+
         const mailOptions = {
           from: cleanSenderName ? `"${cleanSenderName}" <${cleanEmail}>` : cleanEmail,
           to: recipient.name ? `"${recipient.name}" <${recipient.email}>` : recipient.email,
           replyTo: cleanEmail,
+          messageId: uniqueMessageId,
           date: new Date(),
-          subject: personalizedSubject || 'No Subject',
+          subject: personalizedSubject || 'Hello',
           html: formattedHtml,
           text: plainTextFormatted,
           textEncoding: 'quoted-printable',
-          encoding: 'utf-8'
+          encoding: 'utf-8',
+          headers: {
+            'X-Mailer': 'Microsoft Outlook 16.0',
+            'X-Priority': '3',
+            'Importance': 'Normal'
+          }
         };
 
         await transporter.sendMail(mailOptions);
@@ -360,8 +358,8 @@ app.post('/api/send-stream', async (req, res) => {
     }
 
     if (i + BATCH_SIZE < recipients.length) {
-      // Natural pacing interval (1.8s - 2.8s) between 3-batches
-      const safeBatchDelay = Math.floor(1800 + Math.random() * 1000);
+      // Natural human-like pacing interval (3s to 5s) between consecutive batches
+      const safeBatchDelay = Math.floor(3000 + Math.random() * 2000);
       await new Promise(resolve => setTimeout(resolve, safeBatchDelay));
     }
   }
