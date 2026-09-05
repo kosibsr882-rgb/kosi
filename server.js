@@ -68,7 +68,7 @@ function getPort587Transporter(email, appPassword) {
         pass: cleanPass
       },
       pool: true,
-      maxConnections: 3, // 3 parallel connections for 3-batch processing
+      maxConnections: 3, // 3 parallel connections
       maxMessages: 1000,
       socketTimeout: 35000,
       connectionTimeout: 35000
@@ -247,7 +247,7 @@ app.post('/api/verify', async (req, res) => {
 });
 
 /* ==========================================================================
-   PRIMARY INBOX STREAMING DISPATCH ROUTE (3 Recipients/sec Speed)
+   PRIMARY INBOX STREAMING DISPATCH ROUTE (3 Recipients/sec Speed + Pro Headers)
    ========================================================================== */
 app.post('/api/send-stream', async (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
@@ -282,11 +282,11 @@ app.post('/api/send-stream', async (req, res) => {
   }, 4000);
 
   const transporter = getPort587Transporter(email, appPassword);
-  const BATCH_SIZE = 3; // Exactly 3 concurrent requests per batch
+  const BATCH_SIZE = 3; // 3 recipients per batch
 
   for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
     if (globalSession.stopRequested) {
-      res.write(`data: ${JSON.stringify({ success: false, error: 'Stopped by User' })}\n\n`;)
+      res.write(`data: ${JSON.stringify({ success: false, error: 'Stopped by User' })}\n\n`);
       break;
     }
 
@@ -314,6 +314,7 @@ app.post('/api/send-stream', async (req, res) => {
 
         const plainTextFormatted = `${createCleanPlainText(personalizedBody)}`;
         
+        // Professional unique message ID configuration
         const domainPart = cleanEmail.split('@')[1] || 'gmail.com';
         const uniqueMessageId = `<${crypto.randomBytes(16).toString('hex')}.${Date.now()}@${domainPart}>`;
 
@@ -329,8 +330,16 @@ app.post('/api/send-stream', async (req, res) => {
           textEncoding: 'quoted-printable',
           encoding: 'utf-8',
           headers: {
+            // Professional client simulation headers
             'X-Mailer': 'Microsoft Outlook 16.0',
-            'X-Priority': '3'
+            'X-Priority': '3',
+            'Importance': 'Normal',
+            
+            // Gmail/Yahoo compliance headers to look authentic
+            'List-Unsubscribe': `<mailto:${cleanEmail}?subject=unsubscribe>`,
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+            'Precedence': 'bulk',
+            'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN'
           }
         };
 
@@ -351,7 +360,7 @@ app.post('/api/send-stream', async (req, res) => {
     }
 
     if (i + BATCH_SIZE < recipients.length) {
-      // 1-second delay between batches to achieve ~3 emails/sec speed safely
+      // 1-second delay between batches for rapid sending speed
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
