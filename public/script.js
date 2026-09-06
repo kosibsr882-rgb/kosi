@@ -1,16 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
   const loginForm = document.getElementById('loginForm');
   const mailerSection = document.getElementById('mailerSection');
+  const addAccountBtn = document.getElementById('addAccountBtn');
+  const accountsContainer = document.getElementById('accountsContainer');
+  const verifyBtn = document.getElementById('verifyBtn');
   const sendBtn = document.getElementById('sendBtn');
   const stopBtn = document.getElementById('stopBtn');
-  const verifyBtn = document.getElementById('verifyBtn');
   const logsContainer = document.getElementById('logsContainer');
-  
-  const statusCounts = {
-    total: 0,
-    success: 0,
-    failed: 0
-  };
 
   // Auth Handling
   if (loginForm) {
@@ -38,55 +34,86 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // SMTP Verify Handler
+  // Dynamic Add Account Row
+  if (addAccountBtn) {
+    addAccountBtn.addEventListener('click', () => {
+      const row = document.createElement('div');
+      row.className = 'account-row';
+      row.innerHTML = `
+        <input type="email" placeholder="sender@gmail.com" class="acc-email" required>
+        <input type="password" placeholder="16-Char App Password" class="acc-pass" required>
+        <input type="text" placeholder="Sender Name (Optional)" class="acc-name">
+        <button type="button" class="remove-btn">✕</button>
+      `;
+      
+      row.querySelector('.remove-btn').addEventListener('click', () => {
+        row.remove();
+      });
+
+      accountsContainer.appendChild(row);
+    });
+  }
+
+  // Helper to gather all input accounts
+  function getAccountsList() {
+    const rows = accountsContainer.querySelectorAll('.account-row');
+    const accounts = [];
+    rows.forEach(row => {
+      const email = row.querySelector('.acc-email').value.trim();
+      const appPassword = row.querySelector('.acc-pass').value.trim();
+      const senderName = row.querySelector('.acc-name').value.trim();
+      if (email && appPassword) {
+        accounts.push({ email, appPassword, senderName });
+      }
+    });
+    return accounts;
+  }
+
+  // Verify All SMTP Accounts
   if (verifyBtn) {
     verifyBtn.addEventListener('click', async () => {
-      const email = document.getElementById('senderEmail').value;
-      const appPassword = document.getElementById('appPassword').value;
+      const accounts = getAccountsList();
+      if (accounts.length === 0) {
+        alert('Please fill at least one Gmail account and App Password.');
+        return;
+      }
+
       let cfToken = '';
-      
       if (typeof turnstile !== 'undefined') {
         try { cfToken = turnstile.getResponse(); } catch(e) {}
       }
 
-      if (!email || !appPassword) {
-        alert('Please enter Gmail and App Password first.');
-        return;
-      }
-
-      verifyBtn.textContent = 'Verifying...';
+      verifyBtn.textContent = 'Verifying All...';
       try {
         const res = await fetch('/api/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, appPassword, cfToken })
+          body: JSON.stringify({ accounts, cfToken })
         });
         const data = await res.json();
         if (data.success) {
-          alert('✅ SMTP Verified Successfully!');
+          alert('✅ All SMTP Accounts Verified Successfully!');
         } else {
           alert('❌ Verification Failed: ' + data.message);
         }
       } catch (err) {
         alert('Verification request failed.');
       } finally {
-        verifyBtn.textContent = 'Verify SMTP';
+        verifyBtn.textContent = 'Verify All Accounts';
       }
     });
   }
 
-  // Send Streaming Handler
+  // Send Streaming Handler with Multi-Account Rotation
   if (sendBtn) {
     sendBtn.addEventListener('click', async () => {
-      const email = document.getElementById('senderEmail').value;
-      const appPassword = document.getElementById('appPassword').value;
-      const senderName = document.getElementById('senderName').value;
+      const accounts = getAccountsList();
       const subject = document.getElementById('subject').value;
       const messageBody = document.getElementById('messageBody').value;
       const recipientsRaw = document.getElementById('recipients').value;
 
-      if (!email || !appPassword || !recipientsRaw) {
-        alert('Please fill in all mandatory fields.');
+      if (accounts.length === 0) {
+        alert('Please add at least one sender Gmail account.');
         return;
       }
 
@@ -96,15 +123,11 @@ document.addEventListener('DOMContentLoaded', () => {
         .filter(r => r.length > 0);
 
       if (recipients.length === 0) {
-        alert('No valid recipients found.');
+        alert('Please add valid recipients.');
         return;
       }
 
-      statusCounts.total = recipients.length;
-      statusCounts.success = 0;
-      statusCounts.failed = 0;
       if (logsContainer) logsContainer.innerHTML = '';
-
       sendBtn.style.display = 'none';
       if (stopBtn) stopBtn.style.display = 'inline-block';
 
@@ -118,9 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email,
-            appPassword,
-            senderName,
+            accounts,
             subject,
             messageBody,
             recipients,
@@ -138,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n\n');
-          buffer = lines.pop(); // Keep unfinished chunk
+          buffer = lines.pop();
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
@@ -151,10 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 logItem.className = data.success ? 'log-success' : 'log-error';
                 
                 if (data.success) {
-                  statusCounts.success++;
-                  logItem.textContent = `[Sent] ${data.recipient}`;
+                  logItem.textContent = `[Sent via ${data.sender}] ➔ ${data.recipient}`;
                 } else {
-                  statusCounts.failed++;
                   logItem.textContent = `[Failed] ${data.recipient || 'Unknown'} - ${data.error}`;
                 }
 
